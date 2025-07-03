@@ -2,6 +2,8 @@
 
 A visual flow designer for creating and managing LangGraph workflows. This interactive tool allows you to design, edit, and export complex graph-based workflows with an intuitive drag-and-drop interface.
 
+![LangGraph Flow Designer Screenshot](screenshot.png)
+
 ## Features
 
 ### Visual Graph Design

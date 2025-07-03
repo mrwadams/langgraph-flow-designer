@@ -228,31 +228,112 @@ const LangGraphFlowDesigner = () => {
     const sourceNode = nodes.find(n => n.id === edge.source);
     const targetNode = nodes.find(n => n.id === edge.target);
     if (!sourceNode || !targetNode) return null;
+    
+    // Calculate center points
     const sourceX = sourceNode.x + sourceNode.width / 2;
     const sourceY = sourceNode.y + sourceNode.height / 2;
     const targetX = targetNode.x + targetNode.width / 2;
     const targetY = targetNode.y + targetNode.height / 2;
-    const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
-    const sourceRadius = Math.max(sourceNode.width, sourceNode.height) / 2 + 5;
-    const targetRadius = Math.max(targetNode.width, targetNode.height) / 2 + 5;
-    const sourceConnX = sourceX + Math.cos(angle) * sourceRadius;
-    const sourceConnY = sourceY + Math.sin(angle) * sourceRadius;
-    const targetConnX = targetX - Math.cos(angle) * targetRadius;
-    const targetConnY = targetY - Math.sin(angle) * targetRadius;
+    
+    // Check if this is a self-loop or bidirectional edge
+    const isSelfLoop = edge.source === edge.target;
+    const reverseEdgeExists = edges.some(e => e.source === edge.target && e.target === edge.source && e.id !== edge.id);
+    
+    let path;
+    let labelX, labelY;
+    
+    if (isSelfLoop) {
+      // Self-loop: create a loop on the right side of the node
+      const loopRadius = 40;
+      const nodeRadius = Math.max(sourceNode.width, sourceNode.height) / 2 + 5;
+      const startAngle = -Math.PI / 6; // -30 degrees
+      const endAngle = Math.PI / 6; // 30 degrees
+      
+      const startX = sourceX + Math.cos(startAngle) * nodeRadius;
+      const startY = sourceY + Math.sin(startAngle) * nodeRadius;
+      const endX = sourceX + Math.cos(endAngle) * nodeRadius;
+      const endY = sourceY + Math.sin(endAngle) * nodeRadius;
+      
+      const cp1X = sourceX + loopRadius * 2;
+      const cp1Y = startY - loopRadius;
+      const cp2X = sourceX + loopRadius * 2;
+      const cp2Y = endY + loopRadius;
+      
+      path = `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+      labelX = sourceX + loopRadius * 1.5;
+      labelY = sourceY;
+    } else {
+      // Calculate angle and connection points
+      const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
+      
+      // Calculate edge intersection with rectangular node boundary
+      const getNodeEdgePoint = (node, centerX, centerY, angle, isSource) => {
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const halfWidth = node.width / 2;
+        const halfHeight = node.height / 2;
+        const buffer = 5; // 5px buffer
+        
+        // Calculate intersection with rectangle edges
+        let t;
+        if (Math.abs(cos) * halfHeight > Math.abs(sin) * halfWidth) {
+          // Intersects with left or right edge
+          t = (halfWidth + buffer) / Math.abs(cos);
+        } else {
+          // Intersects with top or bottom edge
+          t = (halfHeight + buffer) / Math.abs(sin);
+        }
+        
+        return {
+          x: centerX + (isSource ? cos * t : -cos * t),
+          y: centerY + (isSource ? sin * t : -sin * t)
+        };
+      };
+      
+      const sourcePoint = getNodeEdgePoint(sourceNode, sourceX, sourceY, angle, true);
+      const targetPoint = getNodeEdgePoint(targetNode, targetX, targetY, angle, false);
+      
+      if (reverseEdgeExists) {
+        // Simple approach: one edge curves up, the other curves down
+        const curvature = 40;
+        const offsetDistance = 8; // pixels to offset connection points
+        
+        // Curve up if source comes before target alphabetically, down otherwise
+        const curveUp = edge.source < edge.target;
+        const offsetY = curveUp ? -offsetDistance : offsetDistance;
+        
+        // Offset the connection points vertically
+        const offsetSourcePoint = { x: sourcePoint.x, y: sourcePoint.y + offsetY };
+        const offsetTargetPoint = { x: targetPoint.x, y: targetPoint.y + offsetY };
+        
+        const midX = (offsetSourcePoint.x + offsetTargetPoint.x) / 2;
+        const midY = (offsetSourcePoint.y + offsetTargetPoint.y) / 2;
+        const ctrlY = midY + (curveUp ? -curvature : curvature);
+        
+        path = `M ${offsetSourcePoint.x} ${offsetSourcePoint.y} Q ${midX} ${ctrlY} ${offsetTargetPoint.x} ${offsetTargetPoint.y}`;
+        labelX = midX;
+        labelY = ctrlY;
+      } else {
+        // Straight line for single edges
+        path = `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;
+        labelX = (sourcePoint.x + targetPoint.x) / 2;
+        labelY = (sourcePoint.y + targetPoint.y) / 2;
+      }
+    }
+    
     const isSelected = selectedEdge?.id === edge.id;
     const isConditional = edge.type === 'conditional_edge';
     const strokeColor = isSelected ? '#3B82F6' : (isConditional ? '#F59E0B' : edge.color || '#6B7280');
     const strokeWidth = isSelected ? 3 : 2;
     const strokeDasharray = isConditional ? '8,4' : (edge.style === 'dashed' ? '5,5' : 'none');
     const arrowMarker = isSelected ? 'arrowhead-blue' : (isConditional ? 'arrowhead-orange' : 'arrowhead-gray');
-    const midX = (sourceConnX + targetConnX) / 2;
-    const midY = (sourceConnY + targetConnY) / 2;
+    
     return (
       <g key={edge.id}>
-        <line x1={sourceConnX} y1={sourceConnY} x2={targetConnX} y2={targetConnY} stroke="transparent" strokeWidth="20" className="cursor-pointer" onClick={() => { setSelectedEdge(edge); setSelectedNode(null); setShowEdgePanel(true); setShowNodePanel(false); }} />
-        <line x1={sourceConnX} y1={sourceConnY} x2={targetConnX} y2={targetConnY} stroke={strokeColor} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} markerEnd={`url(#${arrowMarker})`} className="pointer-events-none" />
-        {edge.label && (<text x={midX} y={midY} textAnchor="middle" dy="-8" fontSize="11" fill="#374151" className="pointer-events-none font-medium" style={{ textShadow: '1px 1px 2px rgba(255,255,255,0.8)' }}>{edge.label}</text>)}
-        {isSelected && (<g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); deleteEdge(edge.id); }}><circle cx={midX} cy={midY} r="10" fill="#EF4444" stroke="white" strokeWidth="1.5" /><text x={midX} y={midY} textAnchor="middle" dy="4" fontSize="12" fill="white" className="pointer-events-none font-bold">×</text></g>)}
+        <path d={path} fill="none" stroke="transparent" strokeWidth="20" className="cursor-pointer" onClick={() => { setSelectedEdge(edge); setSelectedNode(null); setShowEdgePanel(true); setShowNodePanel(false); }} />
+        <path d={path} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} markerEnd={`url(#${arrowMarker})`} className="pointer-events-none" />
+        {edge.label && (<text x={labelX} y={labelY} textAnchor="middle" dy="-8" fontSize="11" fill="#374151" className="pointer-events-none font-medium" style={{ textShadow: '1px 1px 2px rgba(255,255,255,0.8)' }}>{edge.label}</text>)}
+        {isSelected && (<g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); deleteEdge(edge.id); }}><circle cx={labelX} cy={labelY + 15} r="10" fill="#EF4444" stroke="white" strokeWidth="1.5" /><text x={labelX} y={labelY + 15} textAnchor="middle" dy="4" fontSize="12" fill="white" className="pointer-events-none font-bold">×</text></g>)}
       </g>
     );
   };

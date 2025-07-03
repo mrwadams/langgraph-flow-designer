@@ -311,8 +311,9 @@ const LangGraphFlowDesigner = () => {
         const ctrlY = midY + (curveUp ? -curvature : curvature);
         
         path = `M ${offsetSourcePoint.x} ${offsetSourcePoint.y} Q ${midX} ${ctrlY} ${offsetTargetPoint.x} ${offsetTargetPoint.y}`;
+        // Position label halfway between the midpoint and control point for better visibility
         labelX = midX;
-        labelY = ctrlY;
+        labelY = midY + (curveUp ? -curvature * 0.5 : curvature * 0.5);
       } else {
         // Straight line for single edges
         path = `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;

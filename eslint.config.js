@@ -18,6 +18,7 @@ export default [
         URL: 'readonly',
         FileReader: 'readonly',
         alert: 'readonly',
+        setTimeout: 'readonly',
       },
       parserOptions: {
         ecmaVersion: 'latest',

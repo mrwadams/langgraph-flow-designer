@@ -15,6 +15,8 @@ import {
   Code,
   ChevronDown,
   ChevronUp,
+  Undo,
+  Redo,
 } from 'lucide-react'
 
 const LangGraphFlowDesigner = () => {
@@ -39,6 +41,11 @@ const LangGraphFlowDesigner = () => {
   const [nextEdgeId, setNextEdgeId] = useState(1)
   const [nextToolId, setNextToolId] = useState(1)
   const [showJsonViewer, setShowJsonViewer] = useState(false)
+
+  // --- UNDO/REDO SYSTEM ---
+  const [history, setHistory] = useState([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const isUndoRedoRef = useRef(false)
 
   // --- REFS ---
   const canvasRef = useRef(null)
@@ -78,6 +85,50 @@ const LangGraphFlowDesigner = () => {
     { type: 'edge', label: 'Edge', style: 'solid' },
     { type: 'conditional_edge', label: 'Conditional Edge', style: 'dashed' },
   ]
+
+  // --- UNDO/REDO FUNCTIONS ---
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      isUndoRedoRef.current = true
+      const previousState = history[historyIndex - 1]
+      setNodes(previousState.nodes)
+      setEdges(previousState.edges)
+      setTools(previousState.tools)
+      setNextNodeId(previousState.nextNodeId)
+      setNextEdgeId(previousState.nextEdgeId)
+      setNextToolId(previousState.nextToolId)
+      setHistoryIndex(prev => prev - 1)
+      setSelectedNode(null)
+      setSelectedEdge(null)
+      setShowNodePanel(false)
+      setShowEdgePanel(false)
+      setTimeout(() => {
+        isUndoRedoRef.current = false
+      }, 0)
+    }
+  }, [history, historyIndex])
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      isUndoRedoRef.current = true
+      const nextState = history[historyIndex + 1]
+      setNodes(nextState.nodes)
+      setEdges(nextState.edges)
+      setTools(nextState.tools)
+      setNextNodeId(nextState.nextNodeId)
+      setNextEdgeId(nextState.nextEdgeId)
+      setNextToolId(nextState.nextToolId)
+      setHistoryIndex(prev => prev + 1)
+      setSelectedNode(null)
+      setSelectedEdge(null)
+      setShowNodePanel(false)
+      setShowEdgePanel(false)
+      setTimeout(() => {
+        isUndoRedoRef.current = false
+      }, 0)
+    }
+  }, [history, historyIndex])
 
   // --- CORE LOGIC: NODES, EDGES, & TOOLS ---
   const addTool = e => {
@@ -575,6 +626,62 @@ const LangGraphFlowDesigner = () => {
 
   // --- SIDE EFFECTS ---
   useEffect(() => {
+    // Initialize history with empty state
+    if (history.length === 0) {
+      const initialState = {
+        nodes: [],
+        edges: [],
+        tools: [],
+        nextNodeId: 1,
+        nextEdgeId: 1,
+        nextToolId: 1,
+      }
+      setHistory([initialState])
+      setHistoryIndex(0)
+    }
+  }, [history.length])
+
+  // Auto-save to history when state changes (but not during undo/redo)
+  useEffect(() => {
+    if (!isUndoRedoRef.current && history.length > 0) {
+      const currentState = {
+        nodes,
+        edges,
+        tools,
+        nextNodeId,
+        nextEdgeId,
+        nextToolId,
+      }
+
+      const lastState = history[historyIndex]
+      if (
+        lastState &&
+        JSON.stringify(currentState) !== JSON.stringify(lastState)
+      ) {
+        setHistory(prev => {
+          const newHistory = prev.slice(0, historyIndex + 1)
+          newHistory.push(currentState)
+          if (newHistory.length > 50) {
+            newHistory.shift()
+            return newHistory
+          }
+          return newHistory
+        })
+        setHistoryIndex(prev => Math.min(prev + 1, 49))
+      }
+    }
+  }, [
+    nodes,
+    edges,
+    tools,
+    nextNodeId,
+    nextEdgeId,
+    nextToolId,
+    history,
+    historyIndex,
+  ])
+
+  useEffect(() => {
     const handleKeyDown = e => {
       // Don't handle delete/backspace if user is typing in an input field
       const isTyping =
@@ -597,10 +704,21 @@ const LangGraphFlowDesigner = () => {
         setShowNodePanel(false)
         setShowEdgePanel(false)
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      }
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        (e.key === 'y' || (e.key === 'z' && e.shiftKey))
+      ) {
+        e.preventDefault()
+        redo()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedNode, selectedEdge, deleteNode, deleteEdge])
+  }, [selectedNode, selectedEdge, deleteNode, deleteEdge, undo, redo])
 
   // --- JSX RENDER ---
   return (
@@ -677,6 +795,26 @@ const LangGraphFlowDesigner = () => {
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Actions</h3>
             <div className="space-y-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={undo}
+                  disabled={historyIndex <= 0}
+                  className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <Undo size={16} />
+                  <span className="text-sm text-gray-700">Undo</span>
+                </button>
+                <button
+                  onClick={redo}
+                  disabled={historyIndex >= history.length - 1}
+                  className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Redo (Ctrl+Y)"
+                >
+                  <Redo size={16} />
+                  <span className="text-sm text-gray-700">Redo</span>
+                </button>
+              </div>
               <button
                 onClick={exportDesign}
                 className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"

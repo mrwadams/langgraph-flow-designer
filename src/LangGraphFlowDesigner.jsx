@@ -27,6 +27,8 @@ const LangGraphFlowDesigner = () => {
   const [newToolName, setNewToolName] = useState('')
   const [selectedNode, setSelectedNode] = useState(null)
   const [selectedEdge, setSelectedEdge] = useState(null)
+  const [selectedNodes, setSelectedNodes] = useState(new Set())
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [draggedNode, setDraggedNode] = useState(null)
   const [connectionMode, setConnectionMode] = useState(false)
   const [connectionType, setConnectionType] = useState('edge')
@@ -129,6 +131,83 @@ const LangGraphFlowDesigner = () => {
       }, 0)
     }
   }, [history, historyIndex])
+
+  // --- MULTI-SELECT FUNCTIONS ---
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode(!isSelectionMode)
+    setSelectedNodes(new Set())
+    setSelectedNode(null)
+    setSelectedEdge(null)
+    setShowNodePanel(false)
+    setShowEdgePanel(false)
+  }, [isSelectionMode])
+
+  const toggleNodeSelection = nodeId => {
+    setSelectedNodes(prev => {
+      const newSelection = new Set(prev)
+      if (newSelection.has(nodeId)) {
+        newSelection.delete(nodeId)
+      } else {
+        newSelection.add(nodeId)
+      }
+      return newSelection
+    })
+  }
+
+  const clearSelection = () => {
+    setSelectedNodes(new Set())
+  }
+
+  const selectAllNodes = useCallback(() => {
+    setSelectedNodes(new Set(nodes.map(node => node.id)))
+  }, [nodes])
+
+  const deleteSelectedNodes = useCallback(() => {
+    if (selectedNodes.size === 0) return
+
+    const selectedNodeIds = Array.from(selectedNodes)
+    
+    // Remove nodes
+    setNodes(currentNodes => 
+      currentNodes.filter(node => !selectedNodeIds.includes(node.id))
+    )
+    
+    // Remove edges connected to deleted nodes
+    setEdges(currentEdges => 
+      currentEdges.filter(edge => 
+        !selectedNodeIds.includes(edge.from) && !selectedNodeIds.includes(edge.to)
+      )
+    )
+    
+    setSelectedNodes(new Set())
+  }, [selectedNodes])
+
+  const duplicateSelectedNodes = useCallback(() => {
+    if (selectedNodes.size === 0) return
+
+    const selectedNodeList = nodes.filter(node => selectedNodes.has(node.id))
+    const newNodes = []
+    const nodeIdMap = new Map()
+
+    selectedNodeList.forEach(node => {
+      const newNodeId = `node-${nextNodeId + newNodes.length}`
+      const newNode = {
+        ...node,
+        id: newNodeId,
+        x: node.x + 50,
+        y: node.y + 50,
+      }
+      newNodes.push(newNode)
+      nodeIdMap.set(node.id, newNodeId)
+    })
+
+    // Add duplicated nodes
+    setNodes(currentNodes => [...currentNodes, ...newNodes])
+    setNextNodeId(prev => prev + newNodes.length)
+
+    // Select the duplicated nodes
+    setSelectedNodes(new Set(newNodes.map(node => node.id)))
+  }, [selectedNodes, nodes, nextNodeId])
 
   // --- CORE LOGIC: NODES, EDGES, & TOOLS ---
   const addTool = e => {
@@ -259,11 +338,16 @@ const LangGraphFlowDesigner = () => {
         setConnectionMode(false)
       }
     } else {
-      setSelectedNode(node)
-      setSelectedEdge(null)
-      setShowNodePanel(true)
-      setShowEdgePanel(false)
-      setDraggedNode(node)
+      if (isSelectionMode) {
+        toggleNodeSelection(node.id)
+      } else {
+        setSelectedNode(node)
+        setSelectedEdge(null)
+        setShowNodePanel(true)
+        setShowEdgePanel(false)
+        setDraggedNode(node)
+        setSelectedNodes(new Set())
+      }
     }
   }
 
@@ -327,12 +411,19 @@ const LangGraphFlowDesigner = () => {
     const nodeType = nodeTypes.find(nt => nt.type === node.type)
     const Icon = nodeType.icon
     const isSelected = selectedNode?.id === node.id
+    const isMultiSelected = selectedNodes.has(node.id)
     const hasTools = node.tools && node.tools.length > 0
 
     return (
       <div
         key={node.id}
-        className={`absolute cursor-move select-none transition-all duration-150 ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'shadow-md'}`}
+        className={`absolute cursor-move select-none transition-all duration-150 ${
+          isSelected 
+            ? 'ring-2 ring-blue-500 shadow-lg' 
+            : isMultiSelected 
+              ? 'ring-2 ring-orange-500 shadow-lg' 
+              : 'shadow-md'
+        }`}
         style={{
           left: node.x,
           top: node.y,
@@ -690,10 +781,11 @@ const LangGraphFlowDesigner = () => {
         e.target.isContentEditable
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isTyping) {
-        if (selectedNode) {
+        if (selectedNodes.size > 0) {
+          deleteSelectedNodes()
+        } else if (selectedNode) {
           deleteNode(selectedNode.id)
-        }
-        if (selectedEdge) {
+        } else if (selectedEdge) {
           deleteEdge(selectedEdge.id)
         }
       }
@@ -703,6 +795,20 @@ const LangGraphFlowDesigner = () => {
         setConnectionType('edge')
         setShowNodePanel(false)
         setShowEdgePanel(false)
+        setSelectedNodes(new Set())
+        setIsSelectionMode(false)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !isTyping) {
+        e.preventDefault()
+        selectAllNodes()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd' && !isTyping && selectedNodes.size > 0) {
+        e.preventDefault()
+        duplicateSelectedNodes()
+      }
+      if (e.key === 's' && !isTyping) {
+        e.preventDefault()
+        toggleSelectionMode()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
@@ -718,7 +824,7 @@ const LangGraphFlowDesigner = () => {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedNode, selectedEdge, deleteNode, deleteEdge, undo, redo])
+  }, [selectedNode, selectedEdge, selectedNodes, deleteNode, deleteEdge, deleteSelectedNodes, selectAllNodes, duplicateSelectedNodes, toggleSelectionMode, undo, redo])
 
   // --- JSX RENDER ---
   return (
@@ -815,6 +921,63 @@ const LangGraphFlowDesigner = () => {
                   <span className="text-sm text-gray-700">Redo</span>
                 </button>
               </div>
+              <button
+                onClick={toggleSelectionMode}
+                className={`w-full flex items-center gap-2 p-2 text-left rounded-lg border border-gray-200 transition-colors ${
+                  isSelectionMode 
+                    ? 'bg-orange-100 text-orange-700 border-orange-300' 
+                    : 'hover:bg-gray-100'
+                }`}
+                title="Toggle Selection Mode (S)"
+              >
+                <Square size={16} />
+                <span className="text-sm">
+                  {isSelectionMode ? 'Exit Selection' : 'Multi-Select'}
+                </span>
+              </button>
+              {selectedNodes.size > 0 && (
+                <div className="space-y-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="text-xs text-orange-700 font-medium">
+                    {selectedNodes.size} node{selectedNodes.size > 1 ? 's' : ''} selected
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={duplicateSelectedNodes}
+                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+                      title="Duplicate Selected (Ctrl+D)"
+                    >
+                      <Plus size={14} />
+                      <span className="text-xs text-orange-700">Duplicate</span>
+                    </button>
+                    <button
+                      onClick={deleteSelectedNodes}
+                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                      title="Delete Selected (Delete)"
+                    >
+                      <Trash2 size={14} />
+                      <span className="text-xs text-red-700">Delete</span>
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={selectAllNodes}
+                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+                      title="Select All (Ctrl+A)"
+                    >
+                      <Square size={14} />
+                      <span className="text-xs text-orange-700">Select All</span>
+                    </button>
+                    <button
+                      onClick={clearSelection}
+                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                      title="Clear Selection"
+                    >
+                      <X size={14} />
+                      <span className="text-xs text-gray-700">Clear</span>
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={exportDesign}
                 className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"

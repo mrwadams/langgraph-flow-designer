@@ -8,6 +8,8 @@ A visual flow designer for creating and managing LangGraph workflows. This inter
 
 ### Visual Graph Design
 - **Drag & Drop Interface**: Create nodes by clicking buttons in the toolbar and position them anywhere on the canvas
+- **Grid Snap & Alignment**: Snap nodes to grid for precise positioning with alignment and distribution tools
+- **Multi-Select Operations**: Select multiple nodes for bulk editing, alignment, and operations
 - **Multiple Node Types**: 
   - Regular nodes for functions/operations
   - START nodes to mark entry points
@@ -82,7 +84,9 @@ npm run preview
 
 ### Keyboard Shortcuts
 - **Delete/Backspace**: Remove selected nodes or edges
-- **Escape**: Cancel connection mode and close panels
+- **Escape**: Cancel connection mode, close panels, and clear selections
+- **Ctrl+Z** (Cmd+Z): Undo last action
+- **Ctrl+Y** (Cmd+Y): Redo last undone action
 
 ### Canvas Navigation
 - **Mouse Wheel**: Zoom in/out
@@ -100,22 +104,29 @@ npm run preview
 ### Built With
 - **React 19**: Modern React with hooks for state management
 - **Vite**: Fast development server and build tool
-- **Tailwind CSS**: Utility-first CSS framework
+- **Tailwind CSS**: Utility-first CSS framework with proper build configuration
 - **Lucide React**: Beautiful, customizable icons
+- **ESLint & Prettier**: Code quality and formatting
+- **Error Boundaries**: Graceful error handling and recovery
 
 ### Project Structure
 ```
 src/
-├── LangGraphFlowDesigner.jsx  # Main component
-├── main.jsx                   # React entry point
+├── LangGraphFlowDesigner.jsx    # Main component with all workflow logic
+├── ErrorBoundary.jsx           # App-level error boundary
+├── ComponentErrorBoundary.jsx  # Component-level error boundaries
+├── main.jsx                    # React entry point
+├── index.css                   # Tailwind CSS imports
 └── ...
 ```
 
 ### Key Components
-- **Canvas**: SVG-based drawing area with zoom/pan
-- **Toolbar**: Node creation and edge configuration
+- **Canvas**: SVG-based drawing area with zoom/pan and grid overlay
+- **Toolbar**: Node creation, edge configuration, and alignment tools
 - **Properties Panels**: Dynamic node/edge editing
 - **Tool Library**: Reusable tool management
+- **Undo/Redo System**: Complete state history with keyboard shortcuts
+- **Error Boundaries**: Robust error handling preventing crashes
 
 ## Export Format
 

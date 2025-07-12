@@ -18,6 +18,7 @@ import {
   Undo,
   Redo,
 } from 'lucide-react'
+import ComponentErrorBoundary from './ComponentErrorBoundary'
 
 const LangGraphFlowDesigner = () => {
   // --- STATE MANAGEMENT ---
@@ -786,16 +787,21 @@ const LangGraphFlowDesigner = () => {
 
   // --- FILE I/O ---
   const exportDesign = () => {
-    const design = { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId }
-    const blob = new Blob([JSON.stringify(design, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'langgraph-design.json'
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const design = { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId }
+      const blob = new Blob([JSON.stringify(design, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'langgraph-design.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Failed to export design. Please try again.')
+    }
   }
 
   const importDesign = e => {
@@ -805,15 +811,24 @@ const LangGraphFlowDesigner = () => {
       reader.onload = event => {
         try {
           const design = JSON.parse(event.target.result)
+          // Validate the imported data structure
+          if (!design || typeof design !== 'object') {
+            throw new Error('Invalid design structure')
+          }
           setNodes(design.nodes || [])
           setEdges(design.edges || [])
           setTools(design.tools || [])
           setNextNodeId(design.nextNodeId || 1)
           setNextEdgeId(design.nextEdgeId || 1)
           setNextToolId(design.nextToolId || 1)
-        } catch {
-          alert('Invalid file format')
+        } catch (error) {
+          console.error('Import failed:', error)
+          alert('Failed to import file. Please ensure it is a valid LangGraph design file.')
         }
+      }
+      reader.onerror = () => {
+        console.error('File read error:', reader.error)
+        alert('Failed to read file. Please try again.')
       }
       reader.readAsText(file)
     }
@@ -1312,7 +1327,11 @@ const LangGraphFlowDesigner = () => {
               </svg>
             )}
 
-            <svg className="w-full h-full" style={{ zIndex: 1 }}>
+            <ComponentErrorBoundary 
+              componentName="Canvas Renderer"
+              fallbackMessage="Canvas rendering error"
+            >
+              <svg className="w-full h-full" style={{ zIndex: 1 }}>
               <defs>
                 <marker
                   id="arrowhead-gray"
@@ -1349,7 +1368,8 @@ const LangGraphFlowDesigner = () => {
                 </marker>
               </defs>
               {edges.map(renderEdge)}
-            </svg>
+              </svg>
+            </ComponentErrorBoundary>
             <div
               className="absolute inset-0"
               style={{ zIndex: 2, pointerEvents: 'none' }}
@@ -1586,15 +1606,20 @@ const LangGraphFlowDesigner = () => {
         </button>
         {showJsonViewer && (
           <div className="border-t border-gray-200">
-            <div className="p-3 max-h-96 overflow-y-auto">
-              <pre className="text-xs font-mono text-gray-600 whitespace-pre-wrap">
-                {JSON.stringify(
-                  { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId },
-                  null,
-                  2
-                )}
-              </pre>
-            </div>
+            <ComponentErrorBoundary 
+              componentName="JSON Viewer"
+              fallbackMessage="Error displaying JSON"
+            >
+              <div className="p-3 max-h-96 overflow-y-auto">
+                <pre className="text-xs font-mono text-gray-600 whitespace-pre-wrap">
+                  {JSON.stringify(
+                    { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId },
+                    null,
+                    2
+                  )}
+                </pre>
+              </div>
+            </ComponentErrorBoundary>
             <div className="border-t border-gray-200 p-2 flex gap-2">
               <button
                 onClick={() => {

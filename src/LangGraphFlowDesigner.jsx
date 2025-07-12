@@ -29,6 +29,8 @@ const LangGraphFlowDesigner = () => {
   const [selectedEdge, setSelectedEdge] = useState(null)
   const [selectedNodes, setSelectedNodes] = useState(new Set())
   const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [snapToGrid, setSnapToGrid] = useState(true)
+  const [gridSize, setGridSize] = useState(20)
   const [draggedNode, setDraggedNode] = useState(null)
   const [connectionMode, setConnectionMode] = useState(false)
   const [connectionType, setConnectionType] = useState('edge')
@@ -131,6 +133,102 @@ const LangGraphFlowDesigner = () => {
       }, 0)
     }
   }, [history, historyIndex])
+
+  // --- GRID SNAP FUNCTIONS ---
+  const snapToGridFn = useCallback((x, y) => {
+    if (!snapToGrid) return { x, y }
+    return {
+      x: Math.round(x / gridSize) * gridSize,
+      y: Math.round(y / gridSize) * gridSize,
+    }
+  }, [snapToGrid, gridSize])
+
+  // --- ALIGNMENT FUNCTIONS ---
+  const alignNodes = useCallback((type) => {
+    if (selectedNodes.size < 2) return
+    
+    const selectedNodeList = nodes.filter(node => selectedNodes.has(node.id))
+    
+    if (type === 'left') {
+      const leftmost = Math.min(...selectedNodeList.map(node => node.x))
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          selectedNodes.has(node.id) ? { ...node, x: leftmost } : node
+        )
+      )
+    } else if (type === 'right') {
+      const rightmost = Math.max(...selectedNodeList.map(node => node.x))
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          selectedNodes.has(node.id) ? { ...node, x: rightmost } : node
+        )
+      )
+    } else if (type === 'top') {
+      const topmost = Math.min(...selectedNodeList.map(node => node.y))
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          selectedNodes.has(node.id) ? { ...node, y: topmost } : node
+        )
+      )
+    } else if (type === 'bottom') {
+      const bottommost = Math.max(...selectedNodeList.map(node => node.y))
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          selectedNodes.has(node.id) ? { ...node, y: bottommost } : node
+        )
+      )
+    } else if (type === 'horizontal') {
+      const centerY = selectedNodeList.reduce((sum, node) => sum + node.y, 0) / selectedNodeList.length
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          selectedNodes.has(node.id) ? { ...node, y: centerY } : node
+        )
+      )
+    } else if (type === 'vertical') {
+      const centerX = selectedNodeList.reduce((sum, node) => sum + node.x, 0) / selectedNodeList.length
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          selectedNodes.has(node.id) ? { ...node, x: centerX } : node
+        )
+      )
+    }
+  }, [selectedNodes, nodes])
+
+  const distributeNodes = useCallback((type) => {
+    if (selectedNodes.size < 3) return
+    
+    const selectedNodeList = nodes
+      .filter(node => selectedNodes.has(node.id))
+      .sort((a, b) => type === 'horizontal' ? a.x - b.x : a.y - b.y)
+    
+    if (type === 'horizontal') {
+      const totalWidth = selectedNodeList[selectedNodeList.length - 1].x - selectedNodeList[0].x
+      const spacing = totalWidth / (selectedNodeList.length - 1)
+      
+      setNodes(currentNodes => 
+        currentNodes.map(node => {
+          const index = selectedNodeList.findIndex(n => n.id === node.id)
+          if (index >= 0) {
+            return { ...node, x: selectedNodeList[0].x + (index * spacing) }
+          }
+          return node
+        })
+      )
+    } else if (type === 'vertical') {
+      const totalHeight = selectedNodeList[selectedNodeList.length - 1].y - selectedNodeList[0].y
+      const spacing = totalHeight / (selectedNodeList.length - 1)
+      
+      setNodes(currentNodes => 
+        currentNodes.map(node => {
+          const index = selectedNodeList.findIndex(n => n.id === node.id)
+          if (index >= 0) {
+            return { ...node, y: selectedNodeList[0].y + (index * spacing) }
+          }
+          return node
+        })
+      )
+    }
+  }, [selectedNodes, nodes])
 
   // --- MULTI-SELECT FUNCTIONS ---
   const toggleSelectionMode = useCallback(() => {
@@ -243,12 +341,14 @@ const LangGraphFlowDesigner = () => {
 
   const addNode = type => {
     const nodeType = nodeTypes.find(nt => nt.type === type)
+    const basePos = { x: (200 - pan.x) / zoom, y: (200 - pan.y) / zoom }
+    const snappedPos = snapToGridFn(basePos.x, basePos.y)
     const newNode = {
       id: `node-${nextNodeId}`,
       type: type,
       label: `${nodeType.label} ${nextNodeId}`,
-      x: (200 - pan.x) / zoom,
-      y: (200 - pan.y) / zoom,
+      x: snappedPos.x,
+      y: snappedPos.y,
       width: 120,
       height: 60,
       color: nodeType.color,
@@ -356,9 +456,13 @@ const LangGraphFlowDesigner = () => {
       const rect = canvasRef.current.getBoundingClientRect()
       const x = (e.clientX - rect.left - pan.x) / zoom
       const y = (e.clientY - rect.top - pan.y) / zoom
+      const snappedPos = snapToGridFn(
+        x - draggedNode.width / 2,
+        y - draggedNode.height / 2
+      )
       updateNode(draggedNode.id, {
-        x: x - draggedNode.width / 2,
-        y: y - draggedNode.height / 2,
+        x: snappedPos.x,
+        y: snappedPos.y,
       })
     }
     if (isPanning) {
@@ -978,6 +1082,109 @@ const LangGraphFlowDesigner = () => {
                   </div>
                 </div>
               )}
+
+              {/* Grid and Alignment Tools */}
+              <div className="mt-4 space-y-2">
+                <h3 className="text-sm font-medium text-gray-700">Grid & Alignment</h3>
+                
+                {/* Grid Settings */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={snapToGrid}
+                      onChange={e => setSnapToGrid(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-gray-700">Snap to Grid</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600">Grid Size:</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="50"
+                      value={gridSize}
+                      onChange={e => setGridSize(Number(e.target.value))}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-gray-600 w-8">{gridSize}</span>
+                  </div>
+                </div>
+
+                {/* Alignment Tools */}
+                {selectedNodes.size >= 2 && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-600">Align:</div>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        onClick={() => alignNodes('left')}
+                        className="p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Align Left"
+                      >
+                        ⬅
+                      </button>
+                      <button
+                        onClick={() => alignNodes('vertical')}
+                        className="p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Align Center (Vertical)"
+                      >
+                        ↕
+                      </button>
+                      <button
+                        onClick={() => alignNodes('right')}
+                        className="p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Align Right"
+                      >
+                        ➡
+                      </button>
+                      <button
+                        onClick={() => alignNodes('top')}
+                        className="p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Align Top"
+                      >
+                        ⬆
+                      </button>
+                      <button
+                        onClick={() => alignNodes('horizontal')}
+                        className="p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Align Center (Horizontal)"
+                      >
+                        ↔
+                      </button>
+                      <button
+                        onClick={() => alignNodes('bottom')}
+                        className="p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Align Bottom"
+                      >
+                        ⬇
+                      </button>
+                    </div>
+                    {selectedNodes.size >= 3 && (
+                      <>
+                        <div className="text-xs text-gray-600">Distribute:</div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => distributeNodes('horizontal')}
+                            className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
+                            title="Distribute Horizontally"
+                          >
+                            ↔ H
+                          </button>
+                          <button
+                            onClick={() => distributeNodes('vertical')}
+                            className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
+                            title="Distribute Vertically"
+                          >
+                            ↕ V
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={exportDesign}
                 className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
@@ -1074,6 +1281,37 @@ const LangGraphFlowDesigner = () => {
               transformOrigin: '0 0',
             }}
           >
+            {/* Grid overlay */}
+            {snapToGrid && (
+              <svg 
+                className="absolute inset-0 pointer-events-none"
+                style={{ 
+                  zIndex: 0,
+                  width: '200%',
+                  height: '200%',
+                  left: '-50%',
+                  top: '-50%'
+                }}
+              >
+                <defs>
+                  <pattern
+                    id="grid"
+                    width={gridSize}
+                    height={gridSize}
+                    patternUnits="userSpaceOnUse"
+                  >
+                    <path
+                      d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
+                      fill="none"
+                      stroke="#e5e7eb"
+                      strokeWidth="0.5"
+                    />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+              </svg>
+            )}
+
             <svg className="w-full h-full" style={{ zIndex: 1 }}>
               <defs>
                 <marker

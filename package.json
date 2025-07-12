@@ -8,7 +8,14 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "keywords": ["langgraph", "flow-designer", "visual-editor", "workflow", "react", "langchain"],
+  "keywords": [
+    "langgraph",
+    "flow-designer",
+    "visual-editor",
+    "workflow",
+    "react",
+    "langchain"
+  ],
   "author": "",
   "license": "MIT",
   "repository": {
@@ -21,6 +28,9 @@
   "homepage": "https://github.com/mrwadams/langgraph-flow-designer#readme",
   "devDependencies": {
     "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
     "vite": "^7.0.1"
   },
   "dependencies": {

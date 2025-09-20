@@ -46,6 +46,9 @@ const LangGraphFlowDesigner = () => {
   const [nextEdgeId, setNextEdgeId] = useState(1)
   const [nextToolId, setNextToolId] = useState(1)
   const [showJsonViewer, setShowJsonViewer] = useState(false)
+  const [jsonImportValue, setJsonImportValue] = useState('')
+  const [jsonImportError, setJsonImportError] = useState('')
+  const [jsonImportSuccess, setJsonImportSuccess] = useState('')
 
   // --- UNDO/REDO SYSTEM ---
   const [history, setHistory] = useState([])
@@ -834,6 +837,56 @@ const LangGraphFlowDesigner = () => {
     }
   }
 
+  const loadCurrentDesignIntoImport = useCallback(() => {
+    const json = JSON.stringify(
+      { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId },
+      null,
+      2
+    )
+    setJsonImportValue(json)
+    setJsonImportError('')
+    setJsonImportSuccess('')
+  }, [nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId])
+
+  const applyJsonImport = useCallback(() => {
+    if (!jsonImportValue.trim()) {
+      setJsonImportError('Please paste JSON into the editor before importing.')
+      setJsonImportSuccess('')
+      return
+    }
+
+    try {
+      const design = JSON.parse(jsonImportValue)
+      if (!design || typeof design !== 'object') {
+        throw new Error('Invalid design structure')
+      }
+
+      setNodes(design.nodes || [])
+      setEdges(design.edges || [])
+      setTools(design.tools || [])
+      setNextNodeId(design.nextNodeId || 1)
+      setNextEdgeId(design.nextEdgeId || 1)
+      setNextToolId(design.nextToolId || 1)
+
+      setJsonImportError('')
+      setJsonImportSuccess('Design imported successfully.')
+    } catch (error) {
+      console.error('JSON import failed:', error)
+      setJsonImportSuccess('')
+      setJsonImportError(
+        'Failed to import JSON. Please ensure it is valid LangGraph design JSON.'
+      )
+    }
+  }, [
+    jsonImportValue,
+    setEdges,
+    setNextEdgeId,
+    setNextNodeId,
+    setNextToolId,
+    setNodes,
+    setTools,
+  ])
+
   // --- SIDE EFFECTS ---
   useEffect(() => {
     // Initialize history with empty state
@@ -1606,7 +1659,7 @@ const LangGraphFlowDesigner = () => {
         </button>
         {showJsonViewer && (
           <div className="border-t border-gray-200">
-            <ComponentErrorBoundary 
+            <ComponentErrorBoundary
               componentName="JSON Viewer"
               fallbackMessage="Error displaying JSON"
             >
@@ -1620,6 +1673,43 @@ const LangGraphFlowDesigner = () => {
                 </pre>
               </div>
             </ComponentErrorBoundary>
+            <div className="border-t border-gray-200 p-3 space-y-2">
+              <label className="block text-xs font-medium text-gray-700">
+                Paste JSON to Import
+              </label>
+              <textarea
+                value={jsonImportValue}
+                onChange={e => {
+                  setJsonImportValue(e.target.value)
+                  setJsonImportError('')
+                  setJsonImportSuccess('')
+                }}
+                placeholder="Paste the JSON exported from LangGraph Flow Designer or the LangGraph API"
+                className="w-full h-32 p-2 text-xs font-mono border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {jsonImportError && (
+                <p className="text-xs text-red-600">{jsonImportError}</p>
+              )}
+              {jsonImportSuccess && (
+                <p className="text-xs text-green-600">{jsonImportSuccess}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={loadCurrentDesignIntoImport}
+                  type="button"
+                  className="flex-1 text-xs py-1 px-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                >
+                  Load Current JSON
+                </button>
+                <button
+                  onClick={applyJsonImport}
+                  type="button"
+                  className="flex-1 text-xs py-1 px-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  Import JSON
+                </button>
+              </div>
+            </div>
             <div className="border-t border-gray-200 p-2 flex gap-2">
               <button
                 onClick={() => {

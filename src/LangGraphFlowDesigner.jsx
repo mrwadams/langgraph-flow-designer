@@ -1684,7 +1684,7 @@ const LangGraphFlowDesigner = () => {
                   setJsonImportError('')
                   setJsonImportSuccess('')
                 }}
-                placeholder="Paste the JSON exported from LangGraph Flow Designer or the LangGraph API"
+                placeholder="Paste JSON workflow configuration from external tools or editors"
                 className="w-full h-32 p-2 text-xs font-mono border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {jsonImportError && (

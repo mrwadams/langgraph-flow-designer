@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  button {
+    @apply transform transition-transform duration-150 ease-out active:scale-95;
+  }
+}

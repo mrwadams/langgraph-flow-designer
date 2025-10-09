@@ -3,7 +3,6 @@ import {
   Plus,
   Trash2,
   Download,
-  Upload,
   Wrench,
   MessageSquare,
   Route,
@@ -1287,36 +1286,6 @@ const LangGraphFlowDesigner = () => {
     selectedNodes,
   ])
 
-  const importDesign = e => {
-    const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = event => {
-        try {
-          const design = JSON.parse(event.target.result)
-          // Validate the imported data structure
-          if (!design || typeof design !== 'object') {
-            throw new Error('Invalid design structure')
-          }
-          setNodes(design.nodes || [])
-          setEdges(design.edges || [])
-          setTools(design.tools || [])
-          setNextNodeId(design.nextNodeId || 1)
-          setNextEdgeId(design.nextEdgeId || 1)
-          setNextToolId(design.nextToolId || 1)
-        } catch (error) {
-          console.error('Import failed:', error)
-          alert('Failed to import file. Please ensure it is a valid LangGraph design file.')
-        }
-      }
-      reader.onerror = () => {
-        console.error('File read error:', reader.error)
-        alert('Failed to read file. Please try again.')
-      }
-      reader.readAsText(file)
-    }
-  }
-
   const loadCurrentDesignIntoImport = useCallback(() => {
     const json = JSON.stringify(
       { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId },
@@ -1803,25 +1772,7 @@ const LangGraphFlowDesigner = () => {
                     </button>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={exportDesign}
-                  className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-                >
-                  <Download size={16} />{' '}
-                  <span className="text-sm text-gray-700">Download JSON</span>
-                </button>
               </div>
-              <label className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 cursor-pointer transition-colors">
-                <Upload size={16} />{' '}
-                <span className="text-sm text-gray-700">Import</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importDesign}
-                  className="hidden"
-                />
-              </label>
             </div>
           </div>
         </div>

@@ -49,6 +49,11 @@ const LangGraphFlowDesigner = () => {
   const [jsonImportValue, setJsonImportValue] = useState('')
   const [jsonImportError, setJsonImportError] = useState('')
   const [jsonImportSuccess, setJsonImportSuccess] = useState('')
+  const [showExportOptions, setShowExportOptions] = useState(false)
+  const [exportFormat, setExportFormat] = useState('png')
+  const [exportTransparentBg, setExportTransparentBg] = useState(false)
+  const [exportShowGrid, setExportShowGrid] = useState(true)
+  const [isExportingImage, setIsExportingImage] = useState(false)
 
   // --- UNDO/REDO SYSTEM ---
   const [history, setHistory] = useState([])
@@ -807,6 +812,481 @@ const LangGraphFlowDesigner = () => {
     }
   }
 
+  const downloadGraphImage = useCallback(async () => {
+    if (isExportingImage) return
+
+    setIsExportingImage(true)
+
+    try {
+      const effectiveTransparent = exportFormat === 'png' && exportTransparentBg
+      const padding = 60
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+
+    const updateBounds = (x, y) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return
+      if (x < minX) minX = x
+      if (y < minY) minY = y
+      if (x > maxX) maxX = x
+      if (y > maxY) maxY = y
+    }
+
+    const includeRect = (x, y, width, height) => {
+      updateBounds(x, y)
+      updateBounds(x + width, y + height)
+    }
+
+    nodes.forEach(node => {
+      includeRect(node.x - 4, node.y - 4, node.width + 8, node.height + 8)
+    })
+
+    const edgeDrawData = []
+
+    const computeEdgeDrawData = edge => {
+      const sourceNode = nodes.find(n => n.id === edge.source)
+      const targetNode = nodes.find(n => n.id === edge.target)
+      if (!sourceNode || !targetNode) return null
+
+      const sourceX = sourceNode.x + sourceNode.width / 2
+      const sourceY = sourceNode.y + sourceNode.height / 2
+      const targetX = targetNode.x + targetNode.width / 2
+      const targetY = targetNode.y + targetNode.height / 2
+
+      const isSelfLoop = edge.source === edge.target
+      const reverseEdgeExists = edges.some(
+        e => e.source === edge.target && e.target === edge.source && e.id !== edge.id
+      )
+
+      const isConditional = edge.type === 'conditional_edge'
+      const isSelected = selectedEdge?.id === edge.id
+      const strokeColor = isSelected
+        ? '#3B82F6'
+        : isConditional
+          ? '#F59E0B'
+          : edge.color || '#6B7280'
+      const strokeWidth = isSelected ? 3 : 2
+      const dash = isConditional ? [8, 4] : edge.style === 'dashed' ? [5, 5] : []
+
+      const applyBoundsFromPoints = points => {
+        points.forEach(point => updateBounds(point.x, point.y))
+      }
+
+      if (isSelfLoop) {
+        const loopRadius = 40
+        const nodeRadius = Math.max(sourceNode.width, sourceNode.height) / 2 + 5
+        const startAngle = -Math.PI / 6
+        const endAngle = Math.PI / 6
+
+        const startX = sourceX + Math.cos(startAngle) * nodeRadius
+        const startY = sourceY + Math.sin(startAngle) * nodeRadius
+        const endX = sourceX + Math.cos(endAngle) * nodeRadius
+        const endY = sourceY + Math.sin(endAngle) * nodeRadius
+
+        const cp1X = sourceX + loopRadius * 2
+        const cp1Y = startY - loopRadius
+        const cp2X = sourceX + loopRadius * 2
+        const cp2Y = endY + loopRadius
+
+        const labelX = sourceX + loopRadius * 1.5
+        const labelY = sourceY
+
+        applyBoundsFromPoints([
+          { x: startX, y: startY },
+          { x: endX, y: endY },
+          { x: cp1X, y: cp1Y },
+          { x: cp2X, y: cp2Y },
+        ])
+        if (edge.label) {
+          updateBounds(labelX - 50, labelY - 40)
+          updateBounds(labelX + 50, labelY + 40)
+        }
+
+        return {
+          type: 'bezier',
+          start: { x: startX, y: startY },
+          cp1: { x: cp1X, y: cp1Y },
+          cp2: { x: cp2X, y: cp2Y },
+          end: { x: endX, y: endY },
+          prev: { x: cp2X, y: cp2Y },
+          label: edge.label
+            ? { text: edge.label, x: labelX, y: labelY }
+            : null,
+          strokeColor,
+          strokeWidth,
+          dash,
+        }
+      }
+
+      const angle = Math.atan2(targetY - sourceY, targetX - sourceX)
+
+      const getNodeEdgePoint = (node, centerX, centerY, edgeAngle, isSource) => {
+        const cos = Math.cos(edgeAngle)
+        const sin = Math.sin(edgeAngle)
+        const halfWidth = node.width / 2
+        const halfHeight = node.height / 2
+        const buffer = 5
+
+        let t
+        if (Math.abs(cos) * halfHeight > Math.abs(sin) * halfWidth) {
+          t = (halfWidth + buffer) / Math.abs(cos)
+        } else {
+          t = (halfHeight + buffer) / Math.abs(sin)
+        }
+
+        return {
+          x: centerX + (isSource ? cos * t : -cos * t),
+          y: centerY + (isSource ? sin * t : -sin * t),
+        }
+      }
+
+      const sourcePoint = getNodeEdgePoint(sourceNode, sourceX, sourceY, angle, true)
+      const targetPoint = getNodeEdgePoint(targetNode, targetX, targetY, angle, false)
+
+      if (reverseEdgeExists) {
+        const curvature = 40
+        const offsetDistance = 8
+        const curveUp = edge.source < edge.target
+        const offsetY = curveUp ? -offsetDistance : offsetDistance
+
+        const offsetSourcePoint = {
+          x: sourcePoint.x,
+          y: sourcePoint.y + offsetY,
+        }
+        const offsetTargetPoint = {
+          x: targetPoint.x,
+          y: targetPoint.y + offsetY,
+        }
+
+        const midX = (offsetSourcePoint.x + offsetTargetPoint.x) / 2
+        const midY = (offsetSourcePoint.y + offsetTargetPoint.y) / 2
+        const ctrlY = midY + (curveUp ? -curvature : curvature)
+
+        const labelX = midX
+        const labelY = midY + (curveUp ? -curvature * 0.5 : curvature * 0.5)
+
+        applyBoundsFromPoints([
+          offsetSourcePoint,
+          offsetTargetPoint,
+          { x: midX, y: ctrlY },
+        ])
+        if (edge.label) {
+          updateBounds(labelX - 50, labelY - 40)
+          updateBounds(labelX + 50, labelY + 40)
+        }
+
+        return {
+          type: 'quadratic',
+          start: offsetSourcePoint,
+          control: { x: midX, y: ctrlY },
+          end: offsetTargetPoint,
+          prev: { x: midX, y: ctrlY },
+          label: edge.label
+            ? { text: edge.label, x: labelX, y: labelY }
+            : null,
+          strokeColor,
+          strokeWidth,
+          dash,
+        }
+      }
+
+      const labelX = (sourcePoint.x + targetPoint.x) / 2
+      const labelY = (sourcePoint.y + targetPoint.y) / 2
+
+      applyBoundsFromPoints([sourcePoint, targetPoint])
+      if (edge.label) {
+        updateBounds(labelX - 50, labelY - 40)
+        updateBounds(labelX + 50, labelY + 40)
+      }
+
+      return {
+        type: 'line',
+        start: sourcePoint,
+        end: targetPoint,
+        prev: sourcePoint,
+        label: edge.label ? { text: edge.label, x: labelX, y: labelY } : null,
+        strokeColor,
+        strokeWidth,
+        dash,
+      }
+    }
+
+    edges.forEach(edge => {
+      const data = computeEdgeDrawData(edge)
+      if (data) {
+        edgeDrawData.push(data)
+      }
+    })
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
+      const defaultWidth = 800
+      const defaultHeight = 600
+      minX = -defaultWidth / 2
+      maxX = defaultWidth / 2
+      minY = -defaultHeight / 2
+      maxY = defaultHeight / 2
+    }
+
+    const canvasWidth = maxX - minX + padding * 2
+    const canvasHeight = maxY - minY + padding * 2
+    const offsetX = minX - padding
+    const offsetY = minY - padding
+
+    const scale = window.devicePixelRatio > 1 ? 2 : 1
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(canvasWidth * scale))
+    canvas.height = Math.max(1, Math.round(canvasHeight * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      throw new Error('Canvas context not available')
+    }
+
+    ctx.scale(scale, scale)
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    if (!effectiveTransparent) {
+      ctx.fillStyle = '#f9fafb'
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+    }
+
+    if (exportShowGrid) {
+      ctx.save()
+      ctx.strokeStyle = '#e5e7eb'
+      ctx.lineWidth = 0.5
+      ctx.setLineDash([])
+      const startGridX = Math.floor(offsetX / gridSize) * gridSize
+      const endGridX = Math.ceil((offsetX + canvasWidth) / gridSize) * gridSize
+      for (let x = startGridX; x <= endGridX; x += gridSize) {
+        const drawX = x - offsetX
+        ctx.beginPath()
+        ctx.moveTo(drawX, 0)
+        ctx.lineTo(drawX, canvasHeight)
+        ctx.stroke()
+      }
+      const startGridY = Math.floor(offsetY / gridSize) * gridSize
+      const endGridY = Math.ceil((offsetY + canvasHeight) / gridSize) * gridSize
+      for (let y = startGridY; y <= endGridY; y += gridSize) {
+        const drawY = y - offsetY
+        ctx.beginPath()
+        ctx.moveTo(0, drawY)
+        ctx.lineTo(canvasWidth, drawY)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+
+    const translatePoint = point => ({
+      x: point.x - offsetX,
+      y: point.y - offsetY,
+    })
+
+    const drawArrowhead = (from, to, color) => {
+      const angle = Math.atan2(to.y - from.y, to.x - from.x)
+      const size = 10
+      ctx.save()
+      ctx.fillStyle = color
+      ctx.beginPath()
+      ctx.moveTo(to.x, to.y)
+      ctx.lineTo(
+        to.x - size * Math.cos(angle - Math.PI / 6),
+        to.y - size * Math.sin(angle - Math.PI / 6)
+      )
+      ctx.lineTo(
+        to.x - size * Math.cos(angle + Math.PI / 6),
+        to.y - size * Math.sin(angle + Math.PI / 6)
+      )
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+
+    edgeDrawData.forEach(drawData => {
+      const { type, start, end, prev, cp1, cp2, control, strokeColor, strokeWidth, dash, label } = drawData
+      const startPoint = translatePoint(start)
+      const endPoint = translatePoint(end)
+
+      ctx.save()
+      ctx.strokeStyle = strokeColor
+      ctx.lineWidth = strokeWidth
+      ctx.setLineDash(dash)
+      ctx.beginPath()
+      ctx.moveTo(startPoint.x, startPoint.y)
+      if (type === 'bezier') {
+        const cp1Point = translatePoint(cp1)
+        const cp2Point = translatePoint(cp2)
+        ctx.bezierCurveTo(cp1Point.x, cp1Point.y, cp2Point.x, cp2Point.y, endPoint.x, endPoint.y)
+      } else if (type === 'quadratic') {
+        const controlPoint = translatePoint(control)
+        ctx.quadraticCurveTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y)
+      } else {
+        ctx.lineTo(endPoint.x, endPoint.y)
+      }
+      ctx.stroke()
+      ctx.restore()
+
+      const prevPoint = translatePoint(prev)
+      drawArrowhead(prevPoint, endPoint, strokeColor)
+
+      if (label) {
+        const labelX = label.x - offsetX
+        const labelY = label.y - offsetY - 8
+        ctx.save()
+        ctx.font = '11px "Inter", "Helvetica Neue", Arial, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        const metrics = ctx.measureText(label.text)
+        const textWidth = metrics.width
+        const textHeight = 16
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'
+        ctx.fillRect(labelX - textWidth / 2 - 6, labelY - textHeight / 2, textWidth + 12, textHeight)
+        ctx.fillStyle = '#374151'
+        ctx.fillText(label.text, labelX, labelY)
+        ctx.restore()
+      }
+    })
+
+    const drawNodePath = (ctxRef, x, y, width, height, shape) => {
+      if (shape === 'circle') {
+        const radius = Math.min(width, height) / 2
+        ctxRef.beginPath()
+        ctxRef.arc(x + width / 2, y + height / 2, radius, 0, Math.PI * 2)
+        return
+      }
+
+      if (shape === 'hexagon') {
+        const points = [
+          { x: x + width * 0.25, y },
+          { x: x + width * 0.75, y },
+          { x: x + width, y: y + height / 2 },
+          { x: x + width * 0.75, y: y + height },
+          { x: x + width * 0.25, y: y + height },
+          { x: x, y: y + height / 2 },
+        ]
+        ctxRef.beginPath()
+        ctxRef.moveTo(points[0].x, points[0].y)
+        for (let i = 1; i < points.length; i += 1) {
+          ctxRef.lineTo(points[i].x, points[i].y)
+        }
+        ctxRef.closePath()
+        return
+      }
+
+      const radius = shape === 'rounded' ? 8 : 4
+      ctxRef.beginPath()
+      ctxRef.moveTo(x + radius, y)
+      ctxRef.lineTo(x + width - radius, y)
+      ctxRef.quadraticCurveTo(x + width, y, x + width, y + radius)
+      ctxRef.lineTo(x + width, y + height - radius)
+      ctxRef.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+      ctxRef.lineTo(x + radius, y + height)
+      ctxRef.quadraticCurveTo(x, y + height, x, y + height - radius)
+      ctxRef.lineTo(x, y + radius)
+      ctxRef.quadraticCurveTo(x, y, x + radius, y)
+      ctxRef.closePath()
+    }
+
+    const wrapText = (ctxRef, text, x, y, maxWidth, lineHeight) => {
+      if (!text) return
+      const words = text.split(' ')
+      const lines = []
+      let currentLine = ''
+
+      words.forEach(word => {
+        const testLine = currentLine ? `${currentLine} ${word}` : word
+        const { width } = ctxRef.measureText(testLine)
+        if (width > maxWidth && currentLine) {
+          lines.push(currentLine)
+          currentLine = word
+        } else {
+          currentLine = testLine
+        }
+      })
+
+      if (currentLine) {
+        lines.push(currentLine)
+      }
+
+      const totalHeight = (lines.length - 1) * lineHeight
+      const startY = y - totalHeight / 2
+      lines.forEach((line, index) => {
+        ctxRef.fillText(line, x, startY + index * lineHeight)
+      })
+    }
+
+    nodes.forEach(node => {
+      const translatedX = node.x - offsetX
+      const translatedY = node.y - offsetY
+      const isSelected = selectedNode?.id === node.id
+      const isMultiSelected = selectedNodes.has(node.id)
+      const highlightColor = isSelected ? '#3B82F6' : '#F97316'
+
+      ctx.save()
+      drawNodePath(ctx, translatedX, translatedY, node.width, node.height, node.shape)
+      ctx.fillStyle = node.color || '#3B82F6'
+      ctx.fill()
+      if (isSelected || isMultiSelected) {
+        ctx.lineWidth = 4
+        ctx.strokeStyle = highlightColor
+        ctx.shadowColor = `${highlightColor}55`
+        ctx.shadowBlur = 12
+        ctx.stroke()
+      }
+      ctx.restore()
+
+      ctx.save()
+      ctx.fillStyle = 'white'
+      ctx.font = '12px "Inter", "Helvetica Neue", Arial, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      wrapText(
+        ctx,
+        node.label || '',
+        translatedX + node.width / 2,
+        translatedY + node.height / 2,
+        node.width - 16,
+        14
+      )
+      ctx.restore()
+
+      if (node.tools && node.tools.length > 0) {
+        ctx.save()
+        ctx.fillStyle = '#22c55e'
+        ctx.beginPath()
+        ctx.arc(translatedX + 10, translatedY + 10, 6, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      }
+    })
+
+      const mimeType = exportFormat === 'png' ? 'image/png' : 'image/jpeg'
+      const quality = exportFormat === 'jpeg' ? 0.95 : undefined
+      const dataUrl = canvas.toDataURL(mimeType, quality)
+      const link = document.createElement('a')
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      link.download = `langgraph-design-${timestamp}.${exportFormat}`
+      link.href = dataUrl
+      link.click()
+    } catch (error) {
+      console.error('Image export failed:', error)
+      alert('Failed to export image. Please try again.')
+    } finally {
+      setIsExportingImage(false)
+    }
+  }, [
+    edges,
+    exportFormat,
+    exportShowGrid,
+    exportTransparentBg,
+    gridSize,
+    isExportingImage,
+    nodes,
+    selectedEdge,
+    selectedNode,
+    selectedNodes,
+  ])
+
   const importDesign = e => {
     const file = e.target.files[0]
     if (file) {
@@ -903,6 +1383,12 @@ const LangGraphFlowDesigner = () => {
       setHistoryIndex(0)
     }
   }, [history.length])
+
+  useEffect(() => {
+    if (exportFormat === 'jpeg' && exportTransparentBg) {
+      setExportTransparentBg(false)
+    }
+  }, [exportFormat, exportTransparentBg])
 
   // Auto-save to history when state changes (but not during undo/redo)
   useEffect(() => {
@@ -1253,13 +1739,79 @@ const LangGraphFlowDesigner = () => {
                 )}
               </div>
 
-              <button
-                onClick={exportDesign}
-                className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              >
-                <Download size={16} />{' '}
-                <span className="text-sm text-gray-700">Export</span>
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExportOptions(prev => !prev)}
+                  className="w-full flex items-center justify-between gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm text-gray-700">
+                    <Download size={16} /> Export Options
+                  </span>
+                  {showExportOptions ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+                </button>
+                {showExportOptions && (
+                  <div className="space-y-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Image Format
+                      </label>
+                      <select
+                        value={exportFormat}
+                        onChange={e => setExportFormat(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="png">PNG</option>
+                        <option value="jpeg">JPEG</option>
+                      </select>
+                    </div>
+                    <label className={`flex items-center gap-2 text-sm ${exportFormat === 'jpeg' ? 'text-gray-400' : 'text-gray-700'}`}>
+                      <input
+                        type="checkbox"
+                        checked={exportTransparentBg && exportFormat !== 'jpeg'}
+                        onChange={e => setExportTransparentBg(e.target.checked)}
+                        disabled={exportFormat === 'jpeg'}
+                        className="rounded"
+                      />
+                      <span>Transparent background</span>
+                    </label>
+                    {exportFormat === 'jpeg' && (
+                      <p className="text-xs text-gray-500">
+                        Transparency is not supported for JPEG exports.
+                      </p>
+                    )}
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={exportShowGrid}
+                        onChange={e => setExportShowGrid(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span>Include gridlines</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={downloadGraphImage}
+                      disabled={isExportingImage}
+                      className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                        isExportingImage
+                          ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
+                          : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                      }`}
+                    >
+                      {isExportingImage ? 'Exporting…' : 'Download Image'}
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={exportDesign}
+                  className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                >
+                  <Download size={16} />{' '}
+                  <span className="text-sm text-gray-700">Download JSON</span>
+                </button>
+              </div>
               <label className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 cursor-pointer transition-colors">
                 <Upload size={16} />{' '}
                 <span className="text-sm text-gray-700">Import</span>

@@ -19,6 +19,53 @@ import {
 } from 'lucide-react'
 import ComponentErrorBoundary from './ComponentErrorBoundary'
 
+const SidebarSection = ({
+  title,
+  children,
+  collapsible = false,
+  defaultCollapsed = false,
+  contentClassName = 'space-y-3',
+}) => {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
+
+  const handleToggle = () => {
+    if (collapsible) {
+      setIsCollapsed(prev => !prev)
+    }
+  }
+
+  const headerContent = (
+    <div className="flex w-full items-center justify-between gap-2 px-3 py-2">
+      <h3 className="text-sm font-medium text-gray-700">{title}</h3>
+      {collapsible && (
+        <span className="text-gray-500">
+          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+        </span>
+      )}
+    </div>
+  )
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-gray-50">
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="w-full text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-expanded={!isCollapsed}
+        >
+          {headerContent}
+        </button>
+      ) : (
+        headerContent
+      )}
+      {(!collapsible || !isCollapsed) && (
+        <div className={`px-3 pb-3 pt-1 ${contentClassName}`}>{children}</div>
+      )}
+    </section>
+  )
+}
+
 const LangGraphFlowDesigner = () => {
   // --- STATE MANAGEMENT ---
   const [nodes, setNodes] = useState([])
@@ -1461,35 +1508,26 @@ const LangGraphFlowDesigner = () => {
         <h2 className="text-lg font-semibold mb-4 text-gray-800">
           LangGraph Designer
         </h2>
-        <div className="overflow-y-auto flex-grow">
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
-              Add Nodes
-            </h3>
-            <div className="space-y-2">
-              {nodeTypes.map(nodeType => {
-                const Icon = nodeType.icon
-                return (
-                  <button
-                    key={nodeType.type}
-                    onClick={() => addNode(nodeType.type)}
-                    className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-                  >
-                    <Icon size={16} style={{ color: nodeType.color }} />
-                    <span className="text-sm text-gray-700">
-                      {nodeType.label}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
-              Add Edges
-            </h3>
-            <div className="space-y-2">
-              <div>
+        <div className="overflow-y-auto flex-grow space-y-4">
+          <SidebarSection title="Add Nodes" contentClassName="space-y-2">
+            {nodeTypes.map(nodeType => {
+              const Icon = nodeType.icon
+              return (
+                <button
+                  key={nodeType.type}
+                  onClick={() => addNode(nodeType.type)}
+                  className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                >
+                  <Icon size={16} style={{ color: nodeType.color }} />
+                  <span className="text-sm text-gray-700">
+                    {nodeType.label}
+                  </span>
+                </button>
+              )
+            })}
+          </SidebarSection>
+          <SidebarSection title="Add Edges" contentClassName="space-y-2">
+            <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   Edge Type
                 </label>
@@ -1505,7 +1543,7 @@ const LangGraphFlowDesigner = () => {
                   ))}
                 </select>
               </div>
-              <button
+            <button
                 onClick={() => setConnectionMode(!connectionMode)}
                 className={`w-full flex items-center justify-center gap-2 p-2 text-left rounded-lg border transition-all ${connectionMode ? 'bg-blue-100 border-blue-300 text-blue-800' : 'border-gray-200 hover:bg-gray-100'}`}
               >
@@ -1516,265 +1554,262 @@ const LangGraphFlowDesigner = () => {
                     : `Add ${edgeTypes.find(et => et.type === connectionType)?.label || 'Edge'}`}
                 </span>
               </button>
-              {connectionMode && (
-                <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded-md border border-blue-200">
-                  {connectionStart
-                    ? `Click target node...`
-                    : `Click source node to start.`}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Actions</h3>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={undo}
-                  disabled={historyIndex <= 0}
-                  className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <Undo size={16} />
-                  <span className="text-sm text-gray-700">Undo</span>
-                </button>
-                <button
-                  onClick={redo}
-                  disabled={historyIndex >= history.length - 1}
-                  className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Redo (Ctrl+Y)"
-                >
-                  <Redo size={16} />
-                  <span className="text-sm text-gray-700">Redo</span>
-                </button>
+            {connectionMode && (
+              <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded-md border border-blue-200">
+                {connectionStart
+                  ? `Click target node...`
+                  : `Click source node to start.`}
               </div>
+            )}
+          </SidebarSection>
+          <SidebarSection title="Actions">
+            <div className="flex gap-2">
               <button
-                onClick={toggleSelectionMode}
-                className={`w-full flex items-center gap-2 p-2 text-left rounded-lg border border-gray-200 transition-colors ${
-                  isSelectionMode 
-                    ? 'bg-orange-100 text-orange-700 border-orange-300' 
-                    : 'hover:bg-gray-100'
-                }`}
-                title="Toggle Selection Mode (S)"
+                onClick={undo}
+                disabled={historyIndex <= 0}
+                className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Undo (Ctrl+Z)"
               >
-                <Square size={16} />
-                <span className="text-sm">
-                  {isSelectionMode ? 'Exit Selection' : 'Multi-Select'}
-                </span>
+                <Undo size={16} />
+                <span className="text-sm text-gray-700">Undo</span>
               </button>
-              {selectedNodes.size > 0 && (
-                <div className="space-y-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
-                  <div className="text-xs text-orange-700 font-medium">
-                    {selectedNodes.size} node{selectedNodes.size > 1 ? 's' : ''} selected
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={duplicateSelectedNodes}
-                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
-                      title="Duplicate Selected (Ctrl+D)"
-                    >
-                      <Plus size={14} />
-                      <span className="text-xs text-orange-700">Duplicate</span>
-                    </button>
-                    <button
-                      onClick={deleteSelectedNodes}
-                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
-                      title="Delete Selected (Delete)"
-                    >
-                      <Trash2 size={14} />
-                      <span className="text-xs text-red-700">Delete</span>
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={selectAllNodes}
-                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
-                      title="Select All (Ctrl+A)"
-                    >
-                      <Square size={14} />
-                      <span className="text-xs text-orange-700">Select All</span>
-                    </button>
-                    <button
-                      onClick={clearSelection}
-                      className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-                      title="Clear Selection"
-                    >
-                      <X size={14} />
-                      <span className="text-xs text-gray-700">Clear</span>
-                    </button>
-                  </div>
+              <button
+                onClick={redo}
+                disabled={historyIndex >= history.length - 1}
+                className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo size={16} />
+                <span className="text-sm text-gray-700">Redo</span>
+              </button>
+            </div>
+            <button
+              onClick={toggleSelectionMode}
+              className={`w-full flex items-center gap-2 p-2 text-left rounded-lg border border-gray-200 transition-colors ${
+                isSelectionMode
+                  ? 'bg-orange-100 text-orange-700 border-orange-300'
+                  : 'hover:bg-gray-100'
+              }`}
+              title="Toggle Selection Mode (S)"
+            >
+              <Square size={16} />
+              <span className="text-sm">
+                {isSelectionMode ? 'Exit Selection' : 'Multi-Select'}
+              </span>
+            </button>
+            {selectedNodes.size > 0 && (
+              <div className="space-y-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="text-xs text-orange-700 font-medium">
+                  {selectedNodes.size} node{selectedNodes.size > 1 ? 's' : ''} selected
                 </div>
-              )}
-
-              {/* Grid and Alignment Tools */}
-              <div className="mt-4 space-y-2">
-                <h3 className="text-sm font-medium text-gray-700">Grid & Alignment</h3>
-                
-                {/* Grid Settings */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
+                <div className="flex gap-2">
+                  <button
+                    onClick={duplicateSelectedNodes}
+                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+                    title="Duplicate Selected (Ctrl+D)"
+                  >
+                    <Plus size={14} />
+                    <span className="text-xs text-orange-700">Duplicate</span>
+                  </button>
+                  <button
+                    onClick={deleteSelectedNodes}
+                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                    title="Delete Selected (Delete)"
+                  >
+                    <Trash2 size={14} />
+                    <span className="text-xs text-red-700">Delete</span>
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={selectAllNodes}
+                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+                    title="Select All (Ctrl+A)"
+                  >
+                    <Square size={14} />
+                    <span className="text-xs text-orange-700">Select All</span>
+                  </button>
+                  <button
+                    onClick={clearSelection}
+                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                    title="Clear Selection"
+                  >
+                    <X size={14} />
+                    <span className="text-xs text-gray-700">Clear</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowExportOptions(prev => !prev)}
+                className="w-full flex items-center justify-between gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm text-gray-700">
+                  <Download size={16} /> Export Options
+                </span>
+                {showExportOptions ? (
+                  <ChevronUp size={16} className="text-gray-500" />
+                ) : (
+                  <ChevronDown size={16} className="text-gray-500" />
+                )}
+              </button>
+              {showExportOptions && (
+                <div className="space-y-3 p-3 bg-white border border-gray-200 rounded-lg">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                      Image Format
+                    </label>
+                    <select
+                      value={exportFormat}
+                      onChange={e => setExportFormat(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="png">PNG</option>
+                      <option value="jpeg">JPEG</option>
+                    </select>
+                  </div>
+                  <label className={`flex items-center gap-2 text-sm ${exportFormat === 'jpeg' ? 'text-gray-400' : 'text-gray-700'}`}>
                     <input
                       type="checkbox"
-                      checked={snapToGrid}
-                      onChange={e => setSnapToGrid(e.target.checked)}
+                      checked={exportTransparentBg && exportFormat !== 'jpeg'}
+                      onChange={e => setExportTransparentBg(e.target.checked)}
+                      disabled={exportFormat === 'jpeg'}
                       className="rounded"
                     />
-                    <span className="text-gray-700">Snap to Grid</span>
+                    <span>Transparent background</span>
                   </label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-600">Grid Size:</span>
+                  {exportFormat === 'jpeg' && (
+                    <p className="text-xs text-gray-500">
+                      Transparency is not supported for JPEG exports.
+                    </p>
+                  )}
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
                     <input
-                      type="range"
-                      min="10"
-                      max="50"
-                      value={gridSize}
-                      onChange={e => setGridSize(Number(e.target.value))}
-                      className="flex-1"
+                      type="checkbox"
+                      checked={exportShowGrid}
+                      onChange={e => setExportShowGrid(e.target.checked)}
+                      className="rounded"
                     />
-                    <span className="text-xs text-gray-600 w-8">{gridSize}</span>
-                  </div>
+                    <span>Include gridlines</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={downloadGraphImage}
+                    disabled={isExportingImage}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                      isExportingImage
+                        ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
+                        : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    {isExportingImage ? 'Exporting…' : 'Download Image'}
+                  </button>
                 </div>
-
-                {/* Alignment Tools */}
-                {selectedNodes.size >= 2 && (
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-600">Align:</div>
-                    <div className="grid grid-cols-3 gap-1">
-                      <button
-                        onClick={() => alignNodes('left')}
-                        className="p-1 text-xs hover:bg-gray-100 rounded border"
-                        title="Align Left"
-                      >
-                        ⬅
-                      </button>
-                      <button
-                        onClick={() => alignNodes('vertical')}
-                        className="p-1 text-xs hover:bg-gray-100 rounded border"
-                        title="Align Center (Vertical)"
-                      >
-                        ↕
-                      </button>
-                      <button
-                        onClick={() => alignNodes('right')}
-                        className="p-1 text-xs hover:bg-gray-100 rounded border"
-                        title="Align Right"
-                      >
-                        ➡
-                      </button>
-                      <button
-                        onClick={() => alignNodes('top')}
-                        className="p-1 text-xs hover:bg-gray-100 rounded border"
-                        title="Align Top"
-                      >
-                        ⬆
-                      </button>
-                      <button
-                        onClick={() => alignNodes('horizontal')}
-                        className="p-1 text-xs hover:bg-gray-100 rounded border"
-                        title="Align Center (Horizontal)"
-                      >
-                        ↔
-                      </button>
-                      <button
-                        onClick={() => alignNodes('bottom')}
-                        className="p-1 text-xs hover:bg-gray-100 rounded border"
-                        title="Align Bottom"
-                      >
-                        ⬇
-                      </button>
-                    </div>
-                    {selectedNodes.size >= 3 && (
-                      <>
-                        <div className="text-xs text-gray-600">Distribute:</div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => distributeNodes('horizontal')}
-                            className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
-                            title="Distribute Horizontally"
-                          >
-                            ↔ H
-                          </button>
-                          <button
-                            onClick={() => distributeNodes('vertical')}
-                            className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
-                            title="Distribute Vertically"
-                          >
-                            ↕ V
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setShowExportOptions(prev => !prev)}
-                  className="w-full flex items-center justify-between gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-sm text-gray-700">
-                    <Download size={16} /> Export Options
-                  </span>
-                  {showExportOptions ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
-                </button>
-                {showExportOptions && (
-                  <div className="space-y-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                        Image Format
-                      </label>
-                      <select
-                        value={exportFormat}
-                        onChange={e => setExportFormat(e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="png">PNG</option>
-                        <option value="jpeg">JPEG</option>
-                      </select>
-                    </div>
-                    <label className={`flex items-center gap-2 text-sm ${exportFormat === 'jpeg' ? 'text-gray-400' : 'text-gray-700'}`}>
-                      <input
-                        type="checkbox"
-                        checked={exportTransparentBg && exportFormat !== 'jpeg'}
-                        onChange={e => setExportTransparentBg(e.target.checked)}
-                        disabled={exportFormat === 'jpeg'}
-                        className="rounded"
-                      />
-                      <span>Transparent background</span>
-                    </label>
-                    {exportFormat === 'jpeg' && (
-                      <p className="text-xs text-gray-500">
-                        Transparency is not supported for JPEG exports.
-                      </p>
-                    )}
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={exportShowGrid}
-                        onChange={e => setExportShowGrid(e.target.checked)}
-                        className="rounded"
-                      />
-                      <span>Include gridlines</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={downloadGraphImage}
-                      disabled={isExportingImage}
-                      className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
-                        isExportingImage
-                          ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
-                          : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                      }`}
-                    >
-                      {isExportingImage ? 'Exporting…' : 'Download Image'}
-                    </button>
-                  </div>
-                )}
+              )}
+            </div>
+          </SidebarSection>
+          <SidebarSection
+            title="Grid & Alignment"
+            collapsible
+            defaultCollapsed
+            contentClassName="space-y-3"
+          >
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={snapToGrid}
+                  onChange={e => setSnapToGrid(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-gray-700">Snap to Grid</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">Grid Size:</span>
+                <input
+                  type="range"
+                  min="10"
+                  max="50"
+                  value={gridSize}
+                  onChange={e => setGridSize(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-xs text-gray-600 w-8">{gridSize}</span>
               </div>
             </div>
-          </div>
+            {selectedNodes.size >= 2 && (
+              <div className="space-y-2">
+                <div className="text-xs text-gray-600">Align:</div>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    onClick={() => alignNodes('left')}
+                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    title="Align Left"
+                  >
+                    ⬅
+                  </button>
+                  <button
+                    onClick={() => alignNodes('vertical')}
+                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    title="Align Center (Vertical)"
+                  >
+                    ↕
+                  </button>
+                  <button
+                    onClick={() => alignNodes('right')}
+                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    title="Align Right"
+                  >
+                    ➡
+                  </button>
+                  <button
+                    onClick={() => alignNodes('top')}
+                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    title="Align Top"
+                  >
+                    ⬆
+                  </button>
+                  <button
+                    onClick={() => alignNodes('horizontal')}
+                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    title="Align Center (Horizontal)"
+                  >
+                    ↔
+                  </button>
+                  <button
+                    onClick={() => alignNodes('bottom')}
+                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    title="Align Bottom"
+                  >
+                    ⬇
+                  </button>
+                </div>
+                {selectedNodes.size >= 3 && (
+                  <>
+                    <div className="text-xs text-gray-600">Distribute:</div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => distributeNodes('horizontal')}
+                        className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Distribute Horizontally"
+                      >
+                        ↔ H
+                      </button>
+                      <button
+                        onClick={() => distributeNodes('vertical')}
+                        className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
+                        title="Distribute Vertically"
+                      >
+                        ↕ V
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </SidebarSection>
         </div>
         <div className="mt-auto pt-4 border-t border-gray-200">
           <div className="mb-4">

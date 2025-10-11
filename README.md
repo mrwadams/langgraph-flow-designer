@@ -10,7 +10,7 @@ A visual flow designer for creating and managing LangGraph workflows. This inter
 - **Drag & Drop Interface**: Create nodes by clicking buttons in the toolbar and position them anywhere on the canvas
 - **Grid Snap & Alignment**: Snap nodes to grid for precise positioning with alignment and distribution tools
 - **Multi-Select Operations**: Select multiple nodes for bulk editing, alignment, and operations
-- **Multiple Node Types**: 
+- **Multiple Node Types**:
   - Regular nodes for functions/operations
   - START nodes to mark entry points
   - END nodes to mark exit points  
@@ -39,6 +39,11 @@ A visual flow designer for creating and managing LangGraph workflows. This inter
 - **JSON Import**: Load previously saved workflows
 - **Portable Format**: Share workflows between team members
 - **Live JSON View**: Real-time JSON viewer widget shows current graph structure
+
+### Adaptive Theming
+- **Automatic Theme Detection**: Honors the operating system preference for light or dark appearance
+- **Persistent Toggle**: Quickly switch themes with the toolbar toggle—your preference is remembered across sessions
+- **Optimized Styling**: Canvas, panels, and controls are tuned for contrast and readability in both modes
 
 ## Getting Started
 

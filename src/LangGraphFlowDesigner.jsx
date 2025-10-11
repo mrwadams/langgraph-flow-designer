@@ -16,9 +16,12 @@ import {
   ChevronUp,
   Undo,
   Redo,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import ComponentErrorBoundary from './ComponentErrorBoundary'
 
+/* eslint-disable react/prop-types */
 const SidebarSection = ({
   title,
   children,
@@ -36,9 +39,9 @@ const SidebarSection = ({
 
   const headerContent = (
     <div className="flex w-full items-center justify-between gap-2 px-3 py-2">
-      <h3 className="text-sm font-medium text-gray-700">{title}</h3>
+      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">{title}</h3>
       {collapsible && (
-        <span className="text-gray-500">
+        <span className="text-gray-500 dark:text-gray-400">
           {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
         </span>
       )}
@@ -46,12 +49,12 @@ const SidebarSection = ({
   )
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-gray-50">
+    <section className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
       {collapsible ? (
         <button
           type="button"
           onClick={handleToggle}
-          className="w-full text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="w-full text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400"
           aria-expanded={!isCollapsed}
         >
           {headerContent}
@@ -65,6 +68,7 @@ const SidebarSection = ({
     </section>
   )
 }
+/* eslint-enable react/prop-types */
 
 const LangGraphFlowDesigner = () => {
   // --- STATE MANAGEMENT ---
@@ -100,6 +104,14 @@ const LangGraphFlowDesigner = () => {
   const [exportTransparentBg, setExportTransparentBg] = useState(false)
   const [exportShowGrid, setExportShowGrid] = useState(true)
   const [isExportingImage, setIsExportingImage] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const storedTheme = window.localStorage.getItem('theme')
+    if (storedTheme) {
+      return storedTheme === 'dark'
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
 
   // --- UNDO/REDO SYSTEM ---
   const [history, setHistory] = useState([])
@@ -188,6 +200,23 @@ const LangGraphFlowDesigner = () => {
       }, 0)
     }
   }, [history, historyIndex])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const root = document.documentElement
+    if (isDarkMode) {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('theme', isDarkMode ? 'dark' : 'light')
+    }
+  }, [isDarkMode])
+
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev)
+  }, [])
 
   // --- GRID SNAP FUNCTIONS ---
   const snapToGridFn = useCallback((x, y) => {
@@ -1502,13 +1531,23 @@ const LangGraphFlowDesigner = () => {
 
   // --- JSX RENDER ---
   return (
-    <div className="w-full h-screen bg-gray-100 flex font-sans">
+    <div className="w-full h-screen flex bg-gray-100 font-sans text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       {/* Toolbar */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4 flex flex-col">
-        <h2 className="text-lg font-semibold mb-4 text-gray-800">
-          LangGraph Designer
-        </h2>
-        <div className="overflow-y-auto flex-grow space-y-4">
+      <div className="flex w-64 flex-col border-r border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            LangGraph Flow Designer
+          </h2>
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+          >
+            {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+        </div>
+        <div className="flex-grow space-y-4 overflow-y-auto">
           <SidebarSection title="Add Nodes" contentClassName="space-y-2">
             {nodeTypes.map(nodeType => {
               const Icon = nodeType.icon
@@ -1516,10 +1555,10 @@ const LangGraphFlowDesigner = () => {
                 <button
                   key={nodeType.type}
                   onClick={() => addNode(nodeType.type)}
-                  className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                  className="flex w-full items-center gap-2 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                 >
                   <Icon size={16} style={{ color: nodeType.color }} />
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 dark:text-gray-200">
                     {nodeType.label}
                   </span>
                 </button>
@@ -1528,13 +1567,13 @@ const LangGraphFlowDesigner = () => {
           </SidebarSection>
           <SidebarSection title="Add Edges" contentClassName="space-y-2">
             <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                   Edge Type
                 </label>
                 <select
                   value={connectionType}
                   onChange={e => setConnectionType(e.target.value)}
-                  className="w-full p-1.5 text-xs border border-gray-300 rounded bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full rounded border border-gray-300 bg-white p-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 >
                   {edgeTypes.map(edgeType => (
                     <option key={edgeType.type} value={edgeType.type}>
@@ -1545,7 +1584,11 @@ const LangGraphFlowDesigner = () => {
               </div>
             <button
                 onClick={() => setConnectionMode(!connectionMode)}
-                className={`w-full flex items-center justify-center gap-2 p-2 text-left rounded-lg border transition-all ${connectionMode ? 'bg-blue-100 border-blue-300 text-blue-800' : 'border-gray-200 hover:bg-gray-100'}`}
+                className={`flex w-full items-center justify-center gap-2 rounded-lg border p-2 text-left transition-all ${
+                  connectionMode
+                    ? 'border-blue-300 bg-blue-100 text-blue-800 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200'
+                    : 'border-gray-200 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800'
+                }`}
               >
                 <Route size={16} />
                 <span className="text-sm font-medium">
@@ -1555,7 +1598,7 @@ const LangGraphFlowDesigner = () => {
                 </span>
               </button>
             {connectionMode && (
-              <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded-md border border-blue-200">
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
                 {connectionStart
                   ? `Click target node...`
                   : `Click source node to start.`}
@@ -1567,28 +1610,28 @@ const LangGraphFlowDesigner = () => {
               <button
                 onClick={undo}
                 disabled={historyIndex <= 0}
-                className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
                 title="Undo (Ctrl+Z)"
               >
                 <Undo size={16} />
-                <span className="text-sm text-gray-700">Undo</span>
+                <span className="text-sm text-gray-700 dark:text-gray-200">Undo</span>
               </button>
               <button
                 onClick={redo}
                 disabled={historyIndex >= history.length - 1}
-                className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
                 title="Redo (Ctrl+Y)"
               >
                 <Redo size={16} />
-                <span className="text-sm text-gray-700">Redo</span>
+                <span className="text-sm text-gray-700 dark:text-gray-200">Redo</span>
               </button>
             </div>
             <button
               onClick={toggleSelectionMode}
-              className={`w-full flex items-center gap-2 p-2 text-left rounded-lg border border-gray-200 transition-colors ${
+              className={`flex w-full items-center gap-2 rounded-lg border border-gray-200 p-2 text-left transition-colors dark:border-gray-700 ${
                 isSelectionMode
-                  ? 'bg-orange-100 text-orange-700 border-orange-300'
-                  : 'hover:bg-gray-100'
+                  ? 'border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
               title="Toggle Selection Mode (S)"
             >
@@ -1598,44 +1641,44 @@ const LangGraphFlowDesigner = () => {
               </span>
             </button>
             {selectedNodes.size > 0 && (
-              <div className="space-y-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
-                <div className="text-xs text-orange-700 font-medium">
+              <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50 p-2 dark:border-orange-700 dark:bg-orange-900/30">
+                <div className="text-xs font-medium text-orange-700 dark:text-orange-200">
                   {selectedNodes.size} node{selectedNodes.size > 1 ? 's' : ''} selected
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={duplicateSelectedNodes}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-orange-200 p-2 text-left transition-colors hover:bg-orange-100 dark:border-orange-700 dark:hover:bg-orange-900/40"
                     title="Duplicate Selected (Ctrl+D)"
                   >
                     <Plus size={14} />
-                    <span className="text-xs text-orange-700">Duplicate</span>
+                    <span className="text-xs text-orange-700 dark:text-orange-200">Duplicate</span>
                   </button>
                   <button
                     onClick={deleteSelectedNodes}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-red-200 p-2 text-left transition-colors hover:bg-red-100 dark:border-red-700 dark:hover:bg-red-900/40"
                     title="Delete Selected (Delete)"
                   >
                     <Trash2 size={14} />
-                    <span className="text-xs text-red-700">Delete</span>
+                    <span className="text-xs text-red-700 dark:text-red-300">Delete</span>
                   </button>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={selectAllNodes}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-orange-200 p-2 text-left transition-colors hover:bg-orange-100 dark:border-orange-700 dark:hover:bg-orange-900/40"
                     title="Select All (Ctrl+A)"
                   >
                     <Square size={14} />
-                    <span className="text-xs text-orange-700">Select All</span>
+                    <span className="text-xs text-orange-700 dark:text-orange-200">Select All</span>
                   </button>
                   <button
                     onClick={clearSelection}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Clear Selection"
                   >
                     <X size={14} />
-                    <span className="text-xs text-gray-700">Clear</span>
+                    <span className="text-xs text-gray-700 dark:text-gray-200">Clear</span>
                   </button>
                 </div>
               </div>
@@ -1644,33 +1687,37 @@ const LangGraphFlowDesigner = () => {
               <button
                 type="button"
                 onClick={() => setShowExportOptions(prev => !prev)}
-                className="w-full flex items-center justify-between gap-2 p-2 text-left hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
               >
-                <span className="flex items-center gap-2 text-sm text-gray-700">
+                <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                   <Download size={16} /> Export Options
                 </span>
                 {showExportOptions ? (
-                  <ChevronUp size={16} className="text-gray-500" />
+                  <ChevronUp size={16} className="text-gray-500 dark:text-gray-400" />
                 ) : (
-                  <ChevronDown size={16} className="text-gray-500" />
+                  <ChevronDown size={16} className="text-gray-500 dark:text-gray-400" />
                 )}
               </button>
               {showExportOptions && (
-                <div className="space-y-3 p-3 bg-white border border-gray-200 rounded-lg">
+                <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
                       Image Format
                     </label>
                     <select
                       value={exportFormat}
                       onChange={e => setExportFormat(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     >
                       <option value="png">PNG</option>
                       <option value="jpeg">JPEG</option>
                     </select>
                   </div>
-                  <label className={`flex items-center gap-2 text-sm ${exportFormat === 'jpeg' ? 'text-gray-400' : 'text-gray-700'}`}>
+                  <label className={`flex items-center gap-2 text-sm ${
+                    exportFormat === 'jpeg'
+                      ? 'text-gray-400 dark:text-gray-500'
+                      : 'text-gray-700 dark:text-gray-200'
+                  }`}>
                     <input
                       type="checkbox"
                       checked={exportTransparentBg && exportFormat !== 'jpeg'}
@@ -1681,11 +1728,11 @@ const LangGraphFlowDesigner = () => {
                     <span>Transparent background</span>
                   </label>
                   {exportFormat === 'jpeg' && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Transparency is not supported for JPEG exports.
                     </p>
                   )}
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                     <input
                       type="checkbox"
                       checked={exportShowGrid}
@@ -1698,10 +1745,10 @@ const LangGraphFlowDesigner = () => {
                     type="button"
                     onClick={downloadGraphImage}
                     disabled={isExportingImage}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                    className={`flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                       isExportingImage
-                        ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
-                        : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                        ? 'cursor-not-allowed border-gray-200 bg-gray-200 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                        : 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
                     {isExportingImage ? 'Exporting…' : 'Download Image'}
@@ -1717,17 +1764,17 @@ const LangGraphFlowDesigner = () => {
             contentClassName="space-y-3"
           >
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input
                   type="checkbox"
                   checked={snapToGrid}
                   onChange={e => setSnapToGrid(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-gray-700">Snap to Grid</span>
+                <span className="text-gray-700 dark:text-gray-200">Snap to Grid</span>
               </label>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600">Grid Size:</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">Grid Size:</span>
                 <input
                   type="range"
                   min="10"
@@ -1736,51 +1783,51 @@ const LangGraphFlowDesigner = () => {
                   onChange={e => setGridSize(Number(e.target.value))}
                   className="flex-1"
                 />
-                <span className="text-xs text-gray-600 w-8">{gridSize}</span>
+                <span className="w-8 text-xs text-gray-600 dark:text-gray-400">{gridSize}</span>
               </div>
             </div>
             {selectedNodes.size >= 2 && (
               <div className="space-y-2">
-                <div className="text-xs text-gray-600">Align:</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">Align:</div>
                 <div className="grid grid-cols-3 gap-1">
                   <button
                     onClick={() => alignNodes('left')}
-                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    className="rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Align Left"
                   >
                     ⬅
                   </button>
                   <button
                     onClick={() => alignNodes('vertical')}
-                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    className="rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Align Center (Vertical)"
                   >
                     ↕
                   </button>
                   <button
                     onClick={() => alignNodes('right')}
-                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    className="rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Align Right"
                   >
                     ➡
                   </button>
                   <button
                     onClick={() => alignNodes('top')}
-                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    className="rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Align Top"
                   >
                     ⬆
                   </button>
                   <button
                     onClick={() => alignNodes('horizontal')}
-                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    className="rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Align Center (Horizontal)"
                   >
                     ↔
                   </button>
                   <button
                     onClick={() => alignNodes('bottom')}
-                    className="p-1 text-xs hover:bg-gray-100 rounded border"
+                    className="rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Align Bottom"
                   >
                     ⬇
@@ -1788,18 +1835,18 @@ const LangGraphFlowDesigner = () => {
                 </div>
                 {selectedNodes.size >= 3 && (
                   <>
-                    <div className="text-xs text-gray-600">Distribute:</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Distribute:</div>
                     <div className="flex gap-1">
                       <button
                         onClick={() => distributeNodes('horizontal')}
-                        className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
+                        className="flex-1 rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                         title="Distribute Horizontally"
                       >
                         ↔ H
                       </button>
                       <button
                         onClick={() => distributeNodes('vertical')}
-                        className="flex-1 p-1 text-xs hover:bg-gray-100 rounded border"
+                        className="flex-1 rounded border p-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                         title="Distribute Vertically"
                       >
                         ↕ V
@@ -1811,9 +1858,9 @@ const LangGraphFlowDesigner = () => {
             )}
           </SidebarSection>
         </div>
-        <div className="mt-auto pt-4 border-t border-gray-200">
+        <div className="border-t border-gray-200 pt-4 dark:border-gray-800">
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
+            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">
               Tool Library
             </h3>
             <form onSubmit={addTool} className="flex gap-2">
@@ -1822,25 +1869,25 @@ const LangGraphFlowDesigner = () => {
                 value={newToolName}
                 onChange={e => setNewToolName(e.target.value)}
                 placeholder="New tool name..."
-                className="flex-grow p-1.5 text-sm border border-gray-300 rounded-lg"
+                className="flex-grow rounded-lg border border-gray-300 p-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
               <button
                 type="submit"
-                className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="rounded-lg bg-green-600 p-2 text-white hover:bg-green-700"
               >
                 <Plus size={16} />
               </button>
             </form>
-            <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
+            <div className="mt-2 max-h-24 space-y-1 overflow-y-auto">
               {tools.map(tool => (
                 <div
                   key={tool.id}
-                  className="flex justify-between items-center text-sm bg-gray-100 p-1.5 rounded"
+                  className="flex items-center justify-between rounded bg-gray-100 p-1.5 text-sm dark:bg-gray-800"
                 >
-                  <span className="truncate">{tool.name}</span>
+                  <span className="truncate text-gray-800 dark:text-gray-100">{tool.name}</span>
                   <button
                     onClick={() => deleteTool(tool.id)}
-                    className="text-gray-500 hover:text-red-600"
+                    className="text-gray-500 transition-colors hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -1848,11 +1895,11 @@ const LangGraphFlowDesigner = () => {
               ))}
             </div>
           </div>
-          <div className="mt-auto pt-4 border-t border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
+          <div className="border-t border-gray-200 pt-4 dark:border-gray-800">
+            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">
               Key Concepts
             </h3>
-            <div className="space-y-2 text-xs text-gray-600">
+            <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
               <p>
                 <strong>Nodes:</strong> Represent functions or tools that
                 perform actions.
@@ -1871,7 +1918,7 @@ const LangGraphFlowDesigner = () => {
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 relative overflow-hidden bg-gray-50">
+      <div className="relative flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
         <div
           ref={canvasRef}
           className="w-full h-full cursor-grab active:cursor-grabbing"
@@ -1909,7 +1956,7 @@ const LangGraphFlowDesigner = () => {
                     <path
                       d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
                       fill="none"
-                      stroke="#e5e7eb"
+                      stroke={isDarkMode ? '#1f2937' : '#e5e7eb'}
                       strokeWidth="0.5"
                     />
                   </pattern>
@@ -1918,7 +1965,7 @@ const LangGraphFlowDesigner = () => {
               </svg>
             )}
 
-            <ComponentErrorBoundary 
+            <ComponentErrorBoundary
               componentName="Canvas Renderer"
               fallbackMessage="Canvas rendering error"
             >
@@ -1972,16 +2019,16 @@ const LangGraphFlowDesigner = () => {
         <div className="absolute bottom-4 right-4 flex items-center gap-2">
           <button
             onClick={() => setZoom(z => Math.min(z * 1.2, 3))}
-            className="bg-white border border-gray-300 rounded p-2 shadow-sm hover:bg-gray-50"
+            className="rounded border border-gray-300 bg-white p-2 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             <Plus size={16} />
           </button>
-          <div className="bg-white border border-gray-300 rounded px-3 py-2 text-sm font-medium shadow-sm">
+          <div className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
             {Math.round(zoom * 100)}%
           </div>
           <button
             onClick={() => setZoom(z => Math.max(z / 1.2, 0.1))}
-            className="bg-white border border-gray-300 rounded p-2 shadow-sm hover:bg-gray-50"
+            className="rounded border border-gray-300 bg-white p-2 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             <Minus size={16} />
           </button>
@@ -1990,19 +2037,19 @@ const LangGraphFlowDesigner = () => {
 
       {/* Properties Panels */}
       {showNodePanel && selectedNode && (
-        <div className="w-80 bg-white border-l border-gray-200 p-4 flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Node Properties</h3>
+        <div className="flex w-80 flex-col border-l border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Node Properties</h3>
             <button
               onClick={() => setShowNodePanel(false)}
-              className="text-gray-500 hover:text-gray-800"
+              className="text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
               <X size={20} />
             </button>
           </div>
-          <div className="space-y-4 flex-grow overflow-y-auto pr-2">
+          <div className="flex-grow space-y-4 overflow-y-auto pr-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Label
               </label>
               <input
@@ -2011,11 +2058,11 @@ const LangGraphFlowDesigner = () => {
                 onChange={e =>
                   updateNode(selectedNode.id, { label: e.target.value })
                 }
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-lg border border-gray-300 p-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Description
               </label>
               <textarea
@@ -2023,12 +2070,12 @@ const LangGraphFlowDesigner = () => {
                 onChange={e =>
                   updateNode(selectedNode.id, { description: e.target.value })
                 }
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-lg border border-gray-300 p-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 rows={3}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Type
               </label>
               <select
@@ -2042,7 +2089,7 @@ const LangGraphFlowDesigner = () => {
                     shape: nodeType.shape,
                   })
                 }}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-lg border border-gray-300 p-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               >
                 {nodeTypes.map(nodeType => (
                   <option key={nodeType.type} value={nodeType.type}>
@@ -2052,7 +2099,7 @@ const LangGraphFlowDesigner = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Color
               </label>
               <input
@@ -2061,19 +2108,19 @@ const LangGraphFlowDesigner = () => {
                 onChange={e =>
                   updateNode(selectedNode.id, { color: e.target.value })
                 }
-                className="w-full h-10 p-1 border border-gray-300 rounded-lg"
+                className="h-10 w-full rounded-lg border border-gray-300 p-1 dark:border-gray-700"
               />
             </div>
             {tools.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                   Associated Tools
                 </label>
-                <div className="mt-2 space-y-2 border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto">
+                <div className="mt-2 max-h-32 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-gray-700">
                   {tools.map(tool => (
                     <label
                       key={tool.id}
-                      className="flex items-center gap-2 text-sm"
+                      className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200"
                     >
                       <input
                         type="checkbox"
@@ -2091,19 +2138,19 @@ const LangGraphFlowDesigner = () => {
         </div>
       )}
       {showEdgePanel && selectedEdge && (
-        <div className="w-80 bg-white border-l border-gray-200 p-4 flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Edge Properties</h3>
+        <div className="flex w-80 flex-col border-l border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Edge Properties</h3>
             <button
               onClick={() => setShowEdgePanel(false)}
-              className="text-gray-500 hover:text-gray-800"
+              className="text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
               <X size={20} />
             </button>
           </div>
-          <div className="space-y-4 flex-grow overflow-y-auto">
+          <div className="flex-grow space-y-4 overflow-y-auto">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Display Label
               </label>
               <input
@@ -2112,11 +2159,11 @@ const LangGraphFlowDesigner = () => {
                 onChange={e =>
                   updateEdge(selectedEdge.id, { label: e.target.value })
                 }
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-lg border border-gray-300 p-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Edge Type
               </label>
               <select
@@ -2138,7 +2185,7 @@ const LangGraphFlowDesigner = () => {
                   }
                   updateEdge(selectedEdge.id, updates)
                 }}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-lg border border-gray-300 p-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               >
                 {edgeTypes.map(edgeType => (
                   <option key={edgeType.type} value={edgeType.type}>
@@ -2149,7 +2196,7 @@ const LangGraphFlowDesigner = () => {
             </div>
             {selectedEdge.type === 'conditional_edge' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                   Condition Function
                 </label>
                 <input
@@ -2158,12 +2205,12 @@ const LangGraphFlowDesigner = () => {
                   onChange={e =>
                     updateEdge(selectedEdge.id, { condition: e.target.value })
                   }
-                  className="w-full p-2 border border-gray-300 rounded-lg font-mono"
+                  className="w-full rounded-lg border border-gray-300 p-2 font-mono dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 />
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Color
               </label>
               <input
@@ -2172,7 +2219,7 @@ const LangGraphFlowDesigner = () => {
                 onChange={e =>
                   updateEdge(selectedEdge.id, { color: e.target.value })
                 }
-                className="w-full h-10 p-1 border border-gray-300 rounded-lg"
+                className="h-10 w-full rounded-lg border border-gray-300 p-1 dark:border-gray-700"
               />
             </div>
           </div>
@@ -2181,28 +2228,28 @@ const LangGraphFlowDesigner = () => {
 
       {/* JSON Viewer Widget */}
       <div
-        className={`absolute bottom-4 left-64 ml-4 bg-white border border-gray-200 rounded-lg shadow-lg transition-all duration-300 z-10 ${showJsonViewer ? 'w-96' : 'w-auto'}`}
+        className={`absolute bottom-4 left-64 z-10 ml-4 rounded-lg border border-gray-200 bg-white shadow-lg transition-all duration-300 dark:border-gray-700 dark:bg-gray-900 ${showJsonViewer ? 'w-96' : 'w-auto'}`}
       >
         <button
           onClick={() => setShowJsonViewer(!showJsonViewer)}
-          className="flex items-center gap-2 p-3 text-sm font-medium text-gray-700 hover:bg-gray-50 w-full"
+          className="flex w-full items-center gap-2 p-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
         >
           <Code size={16} />
           <span>JSON View</span>
           {showJsonViewer ? (
-            <ChevronDown size={16} className="ml-auto" />
+            <ChevronDown size={16} className="ml-auto text-gray-500 dark:text-gray-400" />
           ) : (
-            <ChevronUp size={16} className="ml-auto" />
+            <ChevronUp size={16} className="ml-auto text-gray-500 dark:text-gray-400" />
           )}
         </button>
         {showJsonViewer && (
-          <div className="border-t border-gray-200">
+          <div className="border-t border-gray-200 dark:border-gray-700">
             <ComponentErrorBoundary
               componentName="JSON Viewer"
               fallbackMessage="Error displaying JSON"
             >
-              <div className="p-3 max-h-96 overflow-y-auto">
-                <pre className="text-xs font-mono text-gray-600 whitespace-pre-wrap">
+              <div className="max-h-96 overflow-y-auto p-3">
+                <pre className="whitespace-pre-wrap text-xs font-mono text-gray-600 dark:text-gray-300">
                   {JSON.stringify(
                     { nodes, edges, tools, nextNodeId, nextEdgeId, nextToolId },
                     null,
@@ -2211,8 +2258,8 @@ const LangGraphFlowDesigner = () => {
                 </pre>
               </div>
             </ComponentErrorBoundary>
-            <div className="border-t border-gray-200 p-3 space-y-2">
-              <label className="block text-xs font-medium text-gray-700">
+            <div className="space-y-2 border-t border-gray-200 p-3 dark:border-gray-700">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-200">
                 Paste JSON to Import
               </label>
               <textarea
@@ -2223,32 +2270,32 @@ const LangGraphFlowDesigner = () => {
                   setJsonImportSuccess('')
                 }}
                 placeholder="Paste JSON workflow configuration from external tools or editors"
-                className="w-full h-32 p-2 text-xs font-mono border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-32 w-full rounded border border-gray-300 p-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
               {jsonImportError && (
-                <p className="text-xs text-red-600">{jsonImportError}</p>
+                <p className="text-xs text-red-500 dark:text-red-400">{jsonImportError}</p>
               )}
               {jsonImportSuccess && (
-                <p className="text-xs text-green-600">{jsonImportSuccess}</p>
+                <p className="text-xs text-green-500 dark:text-green-400">{jsonImportSuccess}</p>
               )}
               <div className="flex gap-2">
                 <button
                   onClick={loadCurrentDesignIntoImport}
                   type="button"
-                  className="flex-1 text-xs py-1 px-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  className="flex-1 rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                 >
                   Load Current JSON
                 </button>
                 <button
                   onClick={applyJsonImport}
                   type="button"
-                  className="flex-1 text-xs py-1 px-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  className="flex-1 rounded bg-purple-600 px-2 py-1 text-xs text-white hover:bg-purple-700"
                 >
                   Import JSON
                 </button>
               </div>
             </div>
-            <div className="border-t border-gray-200 p-2 flex gap-2">
+            <div className="flex gap-2 border-t border-gray-200 p-2 dark:border-gray-700">
               <button
                 onClick={() => {
                   const json = JSON.stringify(
@@ -2258,13 +2305,13 @@ const LangGraphFlowDesigner = () => {
                   )
                   navigator.clipboard.writeText(json)
                 }}
-                className="flex-1 text-xs py-1 px-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
               >
                 Copy JSON
               </button>
               <button
                 onClick={exportDesign}
-                className="flex-1 text-xs py-1 px-2 bg-green-600 text-white rounded hover:bg-green-700"
+                className="flex-1 rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700"
               >
                 Download
               </button>

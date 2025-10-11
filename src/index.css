@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  body {
+    @apply bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  }
+
   button {
     @apply transform transition-transform duration-150 ease-out active:scale-95;
   }

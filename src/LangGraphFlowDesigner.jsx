@@ -1584,7 +1584,7 @@ const LangGraphFlowDesigner = () => {
               </div>
             <button
                 onClick={() => setConnectionMode(!connectionMode)}
-                className={`flex w-full items-center justify-center gap-2 rounded-lg border p-2 text-left transition-all ${
+                className={`flex w-full items-center justify-start gap-2 rounded-lg border p-2 transition-all ${
                   connectionMode
                     ? 'border-blue-300 bg-blue-100 text-blue-800 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200'
                     : 'border-gray-200 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800'
@@ -1610,7 +1610,7 @@ const LangGraphFlowDesigner = () => {
               <button
                 onClick={undo}
                 disabled={historyIndex <= 0}
-                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                className="flex flex-1 items-center justify-start gap-1 rounded-lg border border-gray-200 p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
                 title="Undo (Ctrl+Z)"
               >
                 <Undo size={16} />
@@ -1619,7 +1619,7 @@ const LangGraphFlowDesigner = () => {
               <button
                 onClick={redo}
                 disabled={historyIndex >= history.length - 1}
-                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                className="flex flex-1 items-center justify-start gap-1 rounded-lg border border-gray-200 p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
                 title="Redo (Ctrl+Y)"
               >
                 <Redo size={16} />
@@ -1628,7 +1628,7 @@ const LangGraphFlowDesigner = () => {
             </div>
             <button
               onClick={toggleSelectionMode}
-              className={`flex w-full items-center gap-2 rounded-lg border border-gray-200 p-2 text-left transition-colors dark:border-gray-700 ${
+              className={`flex w-full items-center justify-start gap-2 rounded-lg border border-gray-200 p-2 transition-colors dark:border-gray-700 ${
                 isSelectionMode
                   ? 'border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -1648,7 +1648,7 @@ const LangGraphFlowDesigner = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={duplicateSelectedNodes}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-orange-200 p-2 text-left transition-colors hover:bg-orange-100 dark:border-orange-700 dark:hover:bg-orange-900/40"
+                    className="flex flex-1 items-center justify-start gap-1 rounded-lg border border-orange-200 p-2 transition-colors hover:bg-orange-100 dark:border-orange-700 dark:hover:bg-orange-900/40"
                     title="Duplicate Selected (Ctrl+D)"
                   >
                     <Plus size={14} />
@@ -1656,7 +1656,7 @@ const LangGraphFlowDesigner = () => {
                   </button>
                   <button
                     onClick={deleteSelectedNodes}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-red-200 p-2 text-left transition-colors hover:bg-red-100 dark:border-red-700 dark:hover:bg-red-900/40"
+                    className="flex flex-1 items-center justify-start gap-1 rounded-lg border border-red-200 p-2 transition-colors hover:bg-red-100 dark:border-red-700 dark:hover:bg-red-900/40"
                     title="Delete Selected (Delete)"
                   >
                     <Trash2 size={14} />
@@ -1666,7 +1666,7 @@ const LangGraphFlowDesigner = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={selectAllNodes}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-orange-200 p-2 text-left transition-colors hover:bg-orange-100 dark:border-orange-700 dark:hover:bg-orange-900/40"
+                    className="flex flex-1 items-center justify-start gap-1 rounded-lg border border-orange-200 p-2 transition-colors hover:bg-orange-100 dark:border-orange-700 dark:hover:bg-orange-900/40"
                     title="Select All (Ctrl+A)"
                   >
                     <Square size={14} />
@@ -1674,7 +1674,7 @@ const LangGraphFlowDesigner = () => {
                   </button>
                   <button
                     onClick={clearSelection}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 p-2 text-left transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
+                    className="flex flex-1 items-center justify-start gap-1 rounded-lg border border-gray-200 p-2 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     title="Clear Selection"
                   >
                     <X size={14} />

@@ -1536,7 +1536,7 @@ const LangGraphFlowDesigner = () => {
       <div className="flex w-64 flex-col border-r border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            LangGraph Designer
+            LangGraph Flow Designer
           </h2>
           <button
             type="button"
@@ -1545,7 +1545,6 @@ const LangGraphFlowDesigner = () => {
             aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
           >
             {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
-            <span>{isDarkMode ? 'Light' : 'Dark'}</span>
           </button>
         </div>
         <div className="flex-grow space-y-4 overflow-y-auto">

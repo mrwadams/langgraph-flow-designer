@@ -579,13 +579,27 @@ const LangGraphFlowDesigner = () => {
     }
   }
 
+  const calculateZoomChange = (currentZoom, direction) => {
+    const currentPercent = Math.round(currentZoom * 100)
+    const clampedPercent = Math.min(
+      Math.max(currentPercent + direction * 10, 10),
+      300,
+    )
+    return clampedPercent / 100
+  }
+
   const handleWheel = e => {
     e.preventDefault()
     const rect = canvasRef.current.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    const newZoom = Math.min(Math.max(zoom * delta, 0.1), 3)
+    const direction = e.deltaY > 0 ? -1 : 1
+    const newZoom = calculateZoomChange(zoom, direction)
+
+    if (newZoom === zoom) {
+      return
+    }
+
     const deltaZoom = newZoom - zoom
     setPan({
       x: pan.x - ((mouseX - pan.x) * deltaZoom) / zoom,
@@ -2018,7 +2032,7 @@ const LangGraphFlowDesigner = () => {
         </div>
         <div className="absolute bottom-4 right-4 flex items-center gap-2">
           <button
-            onClick={() => setZoom(z => Math.min(z * 1.2, 3))}
+            onClick={() => setZoom(z => calculateZoomChange(z, 1))}
             className="rounded border border-gray-300 bg-white p-2 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             <Plus size={16} />
@@ -2027,7 +2041,7 @@ const LangGraphFlowDesigner = () => {
             {Math.round(zoom * 100)}%
           </div>
           <button
-            onClick={() => setZoom(z => Math.max(z / 1.2, 0.1))}
+            onClick={() => setZoom(z => calculateZoomChange(z, -1))}
             className="rounded border border-gray-300 bg-white p-2 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             <Minus size={16} />

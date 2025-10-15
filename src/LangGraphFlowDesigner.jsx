@@ -91,7 +91,7 @@ const LangGraphFlowDesigner = () => {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const panStartRef = useRef({ x: 0, y: 0 })
   const [nextNodeId, setNextNodeId] = useState(1)
   const [nextEdgeId, setNextEdgeId] = useState(1)
   const [nextToolId, setNextToolId] = useState(1)
@@ -550,10 +550,10 @@ const LangGraphFlowDesigner = () => {
       })
     }
     if (isPanning) {
-      const deltaX = e.clientX - panStart.x
-      const deltaY = e.clientY - panStart.y
-      setPan({ x: pan.x + deltaX, y: pan.y + deltaY })
-      setPanStart({ x: e.clientX, y: e.clientY })
+      const deltaX = e.clientX - panStartRef.current.x
+      const deltaY = e.clientY - panStartRef.current.y
+      setPan(prevPan => ({ x: prevPan.x + deltaX, y: prevPan.y + deltaY }))
+      panStartRef.current = { x: e.clientX, y: e.clientY }
     }
   }
 
@@ -563,20 +563,19 @@ const LangGraphFlowDesigner = () => {
   }
 
   const handleCanvasMouseDown = e => {
-    if (
-      e.target === canvasRef.current.firstChild ||
-      e.target === canvasRef.current
-    ) {
-      setSelectedNode(null)
-      setSelectedEdge(null)
-      setShowNodePanel(false)
-      setShowEdgePanel(false)
-      setConnectionStart(null)
-      setConnectionMode(false)
-      setConnectionType('edge')
-      setIsPanning(true)
-      setPanStart({ x: e.clientX, y: e.clientY })
-    }
+    if (e.button !== 0) return
+    if (e.target.closest('[data-block-pan]')) return
+
+    setSelectedNode(null)
+    setSelectedEdge(null)
+    setShowNodePanel(false)
+    setShowEdgePanel(false)
+    setConnectionStart(null)
+    setConnectionMode(false)
+    setConnectionType('edge')
+    setIsPanning(true)
+    panStartRef.current = { x: e.clientX, y: e.clientY }
+    e.preventDefault()
   }
 
   const calculateZoomChange = (currentZoom, direction) => {
@@ -617,17 +616,18 @@ const LangGraphFlowDesigner = () => {
     const hasTools = node.tools && node.tools.length > 0
 
     return (
-      <div
-        key={node.id}
-        className={`absolute cursor-move select-none transition-all duration-150 ${
-          isSelected 
-            ? 'ring-2 ring-blue-500 shadow-lg' 
-            : isMultiSelected 
-              ? 'ring-2 ring-orange-500 shadow-lg' 
-              : 'shadow-md'
-        }`}
-        style={{
-          left: node.x,
+        <div
+          key={node.id}
+          className={`absolute cursor-move select-none transition-all duration-150 ${
+            isSelected
+              ? 'ring-2 ring-blue-500 shadow-lg'
+              : isMultiSelected
+                ? 'ring-2 ring-orange-500 shadow-lg'
+                : 'shadow-md'
+          }`}
+          data-block-pan
+          style={{
+            left: node.x,
           top: node.y,
           width: node.width,
           height: node.height,
@@ -819,6 +819,7 @@ const LangGraphFlowDesigner = () => {
           stroke="transparent"
           strokeWidth="20"
           className="cursor-pointer"
+          data-block-pan
           onClick={() => {
             setSelectedEdge(edge)
             setSelectedNode(null)
@@ -852,6 +853,7 @@ const LangGraphFlowDesigner = () => {
         {isSelected && (
           <g
             className="cursor-pointer"
+            data-block-pan
             onClick={e => {
               e.stopPropagation()
               deleteEdge(edge.id)
@@ -1935,10 +1937,11 @@ const LangGraphFlowDesigner = () => {
       <div className="relative flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
         <div
           ref={canvasRef}
-          className="w-full h-full cursor-grab active:cursor-grabbing"
+          className={`w-full h-full ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
         >
           <div
